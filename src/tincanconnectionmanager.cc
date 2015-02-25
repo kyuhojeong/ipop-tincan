@@ -120,13 +120,29 @@ TinCanConnectionManager::TinCanConnectionManager(
 
 void TinCanConnectionManager::Setup(
     const std::string& uid, const std::string& ip4, int ip4_mask,
-    const std::string& ip6, int ip6_mask, int subnet_mask, int switchmode) {
+    const std::string& ip6, int ip6_mask, int subnet_mask, int switchmode,
+    int social_addr) {
 
   // input verification before proceeding
   if (!tincan_id_.empty() || uid.size() != kIdSize) return;
 
   // tincan id is uid
   tincan_id_ = uid;
+
+  /* For social addressing, we set most significant bit except prefix
+     is used for local ipv4 address */
+  talk_base::IPAddress ip;
+  int ret = talk_base::IPFromString(ip4, &ip);
+  if (!ret) LOG_TS(LS_ERROR) << "IP CONVERSION ERROR";
+  talk_base::IPAddress ip_local;
+  if (social_addr) {
+    ip_local = talk_base::IPAddress(ip.v4AddressAsHostOrderInteger() +
+                                (1 << 31 - ip4_mask));
+  } else {
+    ip_local = talk_base::IPAddress(ip.v4AddressAsHostOrderInteger());
+  }
+  LOG_TS(INFO) << "LOCAL TAP IP ADDRESS IS " << ip_local.ToString();
+  
 
   // we create X509 identity for secure connections
   identity_.reset(talk_base::SSLIdentity::Generate(tincan_id_));
@@ -145,16 +161,16 @@ void TinCanConnectionManager::Setup(
   int error = 0;
 #if defined(LINUX) || defined(ANDROID)
   // Configure ipop tap VNIC through Linux sys calls
-  error |= tap_set_ipv4_addr(ip4.c_str(), ip4_mask);
+  error |= tap_set_ipv4_addr(ip_local.ToString().c_str(), ip4_mask);
   error |= tap_set_ipv6_addr(ip6.c_str(), ip6_mask);
   error |= tap_set_mtu(MTU) | tap_set_base_flags() | tap_set_up();
   if (switchmode) { error |= tap_unset_noarp_flags(); }
 #endif
   // set up ipop-tap parameters
-  error |= peerlist_set_local_p(uid_str, ip4.c_str(), ip6.c_str());
+  error |= peerlist_set_local_p(uid_str, ip_local.ToString().c_str(), ip6.c_str());
   error |= set_subnet_mask(ip4_mask, subnet_mask);
   ASSERT(error == 0);
-  tincan_ip4_ = ip4;
+  tincan_ip4_ = ip_local.ToString();
   tincan_ip6_ = ip6;
 }
 

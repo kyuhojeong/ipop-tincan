@@ -223,8 +223,9 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
         int ip6_mask = root["ip6_mask"].asInt();
         int subnet_mask = root["subnet_mask"].asInt();
         int switchmode = root["switchmode"].asInt();
+        int social_addr = root["social_addr"].asInt();
         manager_.Setup(uid, ip4, ip4_mask, ip6, ip6_mask, subnet_mask,
-                       switchmode);
+                       switchmode, social_addr);
       }
       break;
     case SET_REMOTE_IP: {
