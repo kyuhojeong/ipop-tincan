@@ -242,6 +242,7 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
     case SET_CB_ENDPOINT: {
         std::string ip = root["ip"].asString();
         int port = root["port"].asInt();
+        LOG_TS(INFO) << "SET CB ENDPOINT IP:" << ip << " port:" << port;
         // sometimes python sends wrong ip address based on platform
         if (ip.compare("::") == 0) {
           remote_addr_ = addr;

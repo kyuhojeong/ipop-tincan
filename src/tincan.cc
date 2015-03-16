@@ -106,7 +106,8 @@ int main(int argc, char **argv) {
   peerlist_init();
   thread_opts_t opts;
 #if defined(LINUX) || defined(ANDROID)
-  opts.tap = tap_open(tincan::kTapName, opts.mac);
+  //opts.tap = tap_open(tincan::kTapName, opts.mac);
+  opts.tap = eth_open(opts.mac);
   if (opts.tap < 0) return -1;
 #elif defined(WIN32)
   opts.win32_tap = open_tap(tincan::kTapName, opts.mac);

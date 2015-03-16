@@ -145,10 +145,10 @@ void TinCanConnectionManager::Setup(
   int error = 0;
 #if defined(LINUX) || defined(ANDROID)
   // Configure ipop tap VNIC through Linux sys calls
-  error |= tap_set_ipv4_addr(ip4.c_str(), ip4_mask);
-  error |= tap_set_ipv6_addr(ip6.c_str(), ip6_mask);
-  error |= tap_set_mtu(MTU) | tap_set_base_flags() | tap_set_up();
-  if (switchmode) { error |= tap_unset_noarp_flags(); }
+  //error |= tap_set_ipv4_addr(ip4.c_str(), ip4_mask);
+  //error |= tap_set_ipv6_addr(ip6.c_str(), ip6_mask);
+  //error |= tap_set_mtu(MTU) | tap_set_base_flags() | tap_set_up();
+  //if (switchmode) { error |= tap_unset_noarp_flags(); }
 #endif
   // set up ipop-tap parameters
   error |= peerlist_set_local_p(uid_str, ip4.c_str(), ip6.c_str());
@@ -319,6 +319,7 @@ void TinCanConnectionManager::HandlePacket(talk_base::AsyncPacketSocket* socket,
     *(msg.get() + kTincanVerOffset) = kIpopVer;
     *(msg.get() + kTincanMsgTypeOffset) = kTincanPacket;
     memcpy(msg.get() + kTincanHeaderSize, data, len);
+    LOG_TS(INFO) << "No TINCAN connection forward to controller addr:" << forward_addr_;
     forward_socket_->SendTo(msg.get(), len + kTincanHeaderSize,
         forward_addr_, packet_options_);
   } 
@@ -563,6 +564,7 @@ void TinCanConnectionManager::HandlePeer(const std::string& uid,
 }
 
 int TinCanConnectionManager::DoPacketSend(const char* buf, size_t len) {
+  LOG_TS(INFO) << "DoPacketSend:" << buf[0] << buf[1] << buf[2]; 
   g_send_queue.add(new talk_base::Buffer(buf, len));
   if (g_manager != 0) {
     // This is called when main_thread has to process outgoing packet
