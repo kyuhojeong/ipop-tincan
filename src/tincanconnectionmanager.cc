@@ -145,7 +145,7 @@ void TinCanConnectionManager::Setup(
   int error = 0;
 #if defined(LINUX) || defined(ANDROID)
   // Configure ipop tap VNIC through Linux sys calls
-  error |= tap_set_ipv4_addr(ip4.c_str(), ip4_mask);
+  //error |= tap_set_ipv4_addr(ip4.c_str(), ip4_mask);
   error |= tap_set_ipv6_addr(ip6.c_str(), ip6_mask);
   error |= tap_set_mtu(MTU) | tap_set_base_flags() | tap_set_up();
   if (switchmode) { error |= tap_unset_noarp_flags(); }
