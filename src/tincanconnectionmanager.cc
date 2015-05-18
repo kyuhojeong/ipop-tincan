@@ -66,6 +66,7 @@ static TinCanConnectionManager* g_manager = 0;
 // this portion of the code, this can probably be done in a smarter way
 static wqueue<talk_base::Buffer*> g_recv_queue;
 static wqueue<talk_base::Buffer*> g_send_queue;
+//static wqueue<talk_base::Buffer*> g_notify_queue;
 
 // when the destination uid of a packet is set to this constant it means
 // that a P2P connection does not exist and this packet is sent to
@@ -580,6 +581,44 @@ int TinCanConnectionManager::DoPacketRecv(char* buf, size_t len) {
   memcpy(buf, packet->data(), packet->length());
   return packet->length();
 }
+
+//int TinCanConnectionManager::PacketNotify(int protocol, unsigned int src_addr,
+//                                          unsigned int dest_addr) {
+int TinCanConnectionManager::PacketNotify(int protocol, char * src_mac, char * dst_mac,  char * src_ipv4,
+                                          char * dest_ipv4) {
+  LOG_TS(INFO) << "protocol:" << protocol << "src_mac:" << src_mac << "dst_mac" << dst_mac <<  " src_ipv4:" << src_ipv4 
+               << " dest_addr:" << dest_ipv4;
+  /*
+  std::string data = std::to_string(protocol); 
+  data += ":";
+  data += std::to_string(src_addr);
+  data += ":";
+  data += std::to_string(dest_addr);
+  */
+  char data[100];
+  /* SendToPeer does not accept NULL as an argument. This is not a good code
+  practice but its only for experiment anyway.  */
+  //char null[] = "null";
+  std::string type = "packet_notify";
+  //static std::string * qwer = & asdf;
+  sprintf(data, "%d,%s,%s,%s,%s", protocol, src_mac, dst_mac, src_ipv4, dest_ipv4);
+  LOG_TS(INFO) << "data:" << data;
+  /* This is for experiment.  */
+  //signal_sender_->SendToPeer(kLocalControllerId, "asdf", "asdf", "packet_notify");
+  //TinCanConnectionManager::signal_sender_->SendToPeer(kLocalControllerId, asdf, asdf, asdf);
+  //g_manager->signal_sender_->SendToPeer(kLocalControllerId, asdf, asdf, asdf);
+  //g_manager->signal_sender_->SendToPeer(kLocalControllerId, NULL, data, type);
+  g_manager->signal_sender_->SendToPeer(kLocalControllerId, g_manager->uid(), data, type);
+  //signal_sender_->SendToPeer(kLocalControllerId, qwer, qwer, qwer);
+  return 0;
+}
+
+/*
+int TinCanConnectionManager::PacketNotify(int protocol, int src_addr,
+                                          int dest_addr) {
+  g_manager.signal_sender->SendToPeer(kLocalControllerId, asdf, asdf, asdf);
+}
+*/
 
 int TinCanConnectionManager::SendToTap(const char* buf, size_t len) {
   g_recv_queue.add(new talk_base::Buffer(buf, len));

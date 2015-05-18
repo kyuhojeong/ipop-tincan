@@ -131,6 +131,9 @@ int main(int argc, char **argv) {
   signal_sender.add_service(1, &xmpp);
   opts.send_func = &tincan::TinCanConnectionManager::DoPacketSend;
   opts.recv_func = &tincan::TinCanConnectionManager::DoPacketRecv;
+  //opts.notify_func =  (int (*)(int, int, int)) &tincan::TinCanConnectionManager::PacketNotify;
+  opts.notify_func = &tincan::TinCanConnectionManager::PacketNotify;
+  //opts.notify_func = NULL;
 
   // Checks to see if network is available, changes IP if not
   char ip_addr[NI_MAXHOST] = { '\0' };

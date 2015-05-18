@@ -140,6 +140,9 @@ class TinCanConnectionManager : public talk_base::MessageHandler,
   virtual void HandlePeer(const std::string& uid, const std::string& data,
                           const std::string& type);
 
+  // Signal handler for PeerSignalSenderInterface
+  //virtual int VirPacketNotify(int protocol, int src_addr, int dest_addr);
+
   // Signal handler for PacketSenderInterface
   virtual void HandlePacket(talk_base::AsyncPacketSocket* socket,
       const char* data, size_t len, const talk_base::SocketAddress& addr);
@@ -170,6 +173,10 @@ class TinCanConnectionManager : public talk_base::MessageHandler,
   static int DoPacketSend(const char* buf, size_t len);
 
   static int DoPacketRecv(char* buf, size_t len);
+
+  //int PacketNotify(int protocol, int source_addr, int destination_addr);
+  //static int PacketNotify(int protocol, int source_addr, int destination_addr);
+  static int PacketNotify(int protocol, char * src_mac, char * dst_mac, char * src_ipv4, char * dst_ipv4);
 
   static int SendToTap(const char* buf, size_t len);
 

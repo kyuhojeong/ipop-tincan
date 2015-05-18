@@ -58,6 +58,8 @@ class ControllerAccess : public PeerSignalSenderInterface,
   virtual void ProcessIPPacket(talk_base::AsyncPacketSocket* socket,
       const char* data, size_t len, const talk_base::SocketAddress& addr);
 
+  static int PacketNotify(int protocol, int source_addr, int destination_addr); 
+
  private:
   void SendTo(const char* pv, size_t cb,
               const talk_base::SocketAddress& addr);
