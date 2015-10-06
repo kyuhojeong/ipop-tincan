@@ -33,7 +33,7 @@
 #include "talk/base/ifaddrs-android.h"
 #endif
 
-#include "talk/base/ssladapter.h"
+#include "webrtc/base/ssladapter.h"
 
 #include "controlleraccess.h"
 #include "tincanconnectionmanager.h"
@@ -44,11 +44,11 @@
 #define SEGMENT_OFFSET 4
 #define CMP_SIZE 7
 
-class SendRunnable : public talk_base::Runnable {
+class SendRunnable : public rtc::Runnable {
  public:
   SendRunnable(thread_opts_t *opts) : opts_(opts) {}
 
-  virtual void Run(talk_base::Thread *thread) {
+  virtual void Run(rtc::Thread *thread) {
     ipop_send_thread(opts_);
   }
 
@@ -56,11 +56,11 @@ class SendRunnable : public talk_base::Runnable {
   thread_opts_t *opts_;
 };
 
-class RecvRunnable : public talk_base::Runnable {
+class RecvRunnable : public rtc::Runnable {
  public:
   RecvRunnable(thread_opts_t *opts) : opts_(opts) {}
 
-  virtual void Run(talk_base::Thread *thread) {
+  virtual void Run(rtc::Thread *thread) {
     ipop_recv_thread(opts_);
   }
 
@@ -102,7 +102,7 @@ bool SSLVerificationCallback(void* cert) {
 }
 
 int main(int argc, char **argv) {
-  talk_base::InitializeSSL(SSLVerificationCallback);
+  rtc::InitializeSSL(SSLVerificationCallback);
   peerlist_init();
   thread_opts_t opts;
 #if defined(LINUX) || defined(ANDROID)
@@ -115,8 +115,8 @@ int main(int argc, char **argv) {
   opts.translate = 0;
   opts.switchmode = 0;
 
-  talk_base::Thread packet_handling_thread, send_thread, recv_thread;
-  talk_base::AutoThread link_setup_thread;
+  rtc::Thread packet_handling_thread, send_thread, recv_thread;
+  rtc::AutoThread link_setup_thread;
   link_setup_thread.WrapCurrent();
 
   tincan::PeerSignalSender signal_sender;
@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
   tincan::XmppNetwork xmpp(&link_setup_thread);
   xmpp.HandlePeer.connect(&manager,
       &tincan::TinCanConnectionManager::HandlePeer);
-  talk_base::BasicPacketSocketFactory packet_factory;
+  rtc::BasicPacketSocketFactory packet_factory;
   tincan::ControllerAccess controller(manager, xmpp, &packet_factory, &opts);
   signal_sender.add_service(0, &controller);
   signal_sender.add_service(1, &xmpp);
