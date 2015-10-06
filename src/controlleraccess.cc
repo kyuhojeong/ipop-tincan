@@ -25,7 +25,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "talk/base/json.h"
+#include "webrtc/base/json.h"
 #include "controlleraccess.h"
 #include "tincan_utils.h"
 
@@ -34,7 +34,7 @@ namespace tincan {
 static const char kLocalHost[] = "127.0.0.1";
 static const char kLocalHost6[] = "::1";
 static const int kUdpPort = 5800;
-static const int kBufferSize = 1024;
+//static const int kBufferSize = 1024;
 static std::map<std::string, int> rpc_calls;
 
 enum {
@@ -73,33 +73,33 @@ static void init_map() {
 
 ControllerAccess::ControllerAccess(
     TinCanConnectionManager& manager, XmppNetwork& network,
-    talk_base::BasicPacketSocketFactory* packet_factory,
+    rtc::BasicPacketSocketFactory* packet_factory,
     thread_opts_t* opts)
     : manager_(manager),
       network_(network),
-      packet_options_(talk_base::DSCP_DEFAULT),
+      packet_options_(rtc::DSCP_DEFAULT),
       opts_(opts) {
-  signal_thread_ = talk_base::Thread::Current();
+  signal_thread_ = rtc::Thread::Current();
   socket_.reset(packet_factory->CreateUdpSocket(
-      talk_base::SocketAddress(kLocalHost, kUdpPort), 0, 0));
+      rtc::SocketAddress(kLocalHost, kUdpPort), 0, 0));
   socket_->SignalReadPacket.connect(this, &ControllerAccess::HandlePacket);
   socket6_.reset(packet_factory->CreateUdpSocket(
-      talk_base::SocketAddress(kLocalHost6, kUdpPort), 0, 0));
+      rtc::SocketAddress(kLocalHost6, kUdpPort), 0, 0));
   socket6_->SignalReadPacket.connect(this, &ControllerAccess::HandlePacket);
   manager_.set_forward_socket(socket6_.get());
   init_map();
 }
 
-void ControllerAccess::ProcessIPPacket(talk_base::AsyncPacketSocket* socket,
-    const char* data, size_t len, const talk_base::SocketAddress& addr) {
+void ControllerAccess::ProcessIPPacket(rtc::AsyncPacketSocket* socket,
+    const char* data, size_t len, const rtc::SocketAddress& addr) {
   ASSERT(signal_thread_->Current());
   manager_.SendToTap(data + kTincanHeaderSize, len - kTincanHeaderSize);
 }
 
 void ControllerAccess::SendTo(const char* pv, size_t cb,
-                              const talk_base::SocketAddress& addr) {
+                              const rtc::SocketAddress& addr) {
   ASSERT(signal_thread_->Current());
-  talk_base::scoped_ptr<char[]> msg(new char[cb + kTincanHeaderSize]);
+  rtc::scoped_ptr<char[]> msg(new char[cb + kTincanHeaderSize]);
   *(msg.get() + kTincanVerOffset) = kIpopVer;
   *(msg.get() + kTincanMsgTypeOffset) = kTincanControl;
   memcpy(msg.get() + kTincanHeaderSize, pv, cb);
@@ -127,12 +127,12 @@ void ControllerAccess::SendToPeer(int overlay_id, const std::string& uid,
 }
 
 void ControllerAccess::SendState(const std::string& uid, bool get_stats,
-                                 const talk_base::SocketAddress& addr) {
+                                 const rtc::SocketAddress& addr) {
   ASSERT(signal_thread_->Current());
   Json::Value state;
   if (uid != "") {
     std::map<std::string, uint32> friends;
-    friends[uid] = talk_base::Time();
+    friends[uid] = rtc::Time();
     state = manager_.GetState(friends, get_stats);
   }
   else {
@@ -164,9 +164,9 @@ void ControllerAccess::SendState(const std::string& uid, bool get_stats,
   }
 }
 
-void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
-    const char* data, size_t len, const talk_base::SocketAddress& addr,
-    const talk_base::PacketTime& ptime) {
+void ControllerAccess::HandlePacket(rtc::AsyncPacketSocket* socket,
+    const char* data, size_t len, const rtc::SocketAddress& addr,
+    const rtc::PacketTime& ptime) {
   ASSERT(signal_thread_->Current());
   if (data[0] != kIpopVer) {
     LOG_TS(LS_ERROR) << "IPOP version mismatch tincan:" << kIpopVer 
@@ -202,6 +202,7 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
         std::string pass = root["password"].asString();
         std::string host = root["host"].asString();
         bool res = network_.Login(user, pass, manager_.uid(), host);
+        LOG_TS(INFO) << "Login: " << res;
       }
       break;
     case CREATE_LINK: {
@@ -219,6 +220,7 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
         if (!cas.empty()) {
           manager_.CreateConnections(uid, cas);
         }
+        LOG_TS(INFO) << "CreateTransport: " << res;
       }
       break;
     case SET_LOCAL_IP: {
@@ -238,6 +240,7 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
         std::string ip4 = root["ip4"].asString();
         std::string ip6 = root["ip6"].asString();
         bool res = manager_.AddIPMapping(uid, ip4, ip6);
+        LOG_TS(INFO) << "AddIPMapping: " << res;
       }
       break;
     case TRIM_LINK: {
@@ -266,18 +269,45 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
       }
       break;
     case SET_LOGGING: {
+
+// Note that the non-standard LoggingSeverity aliases exist because they are
+// still in broad use.  The meanings of the levels are:
+//  LS_SENSITIVE: Information which should only be logged with the consent
+//   of the user, due to privacy concerns.
+//  LS_VERBOSE: This level is for data which we do not want to appear in the
+//   normal debug log, but should appear in diagnostic logs.
+//  LS_INFO: Chatty level used in debugging for all sorts of things, the default
+//   in debug builds.
+//  LS_WARNING: Something that may warrant investigation.
+//  LS_ERROR: Something that should not have occurred.
+//  LS_NONE: Don't log.
+//enum LoggingSeverity {
+//  LS_SENSITIVE,
+//  LS_VERBOSE,
+//  LS_INFO,
+//  LS_WARNING,
+//  LS_ERROR,
+//  LS_NONE,
+//  INFO = LS_INFO,
+//  WARNING = LS_WARNING,
+//  LERROR = LS_ERROR
+//};
+
         int logging = root["logging"].asInt();
         if (logging == 0) {
-          talk_base::LogMessage::LogToDebug(talk_base::LS_ERROR + 1);
+          rtc::LogMessage::LogToDebug(rtc::LS_NONE);
         }
         else if (logging == 1) {
-          talk_base::LogMessage::LogToDebug(talk_base::LS_ERROR);
+          rtc::LogMessage::LogToDebug(rtc::LS_ERROR);
         }
         else if (logging == 2) {
-          talk_base::LogMessage::LogToDebug(talk_base::LS_INFO);
+          rtc::LogMessage::LogToDebug(rtc::LS_INFO);
         }
         else if (logging == 3) {
-          talk_base::LogMessage::LogToDebug(talk_base::LS_SENSITIVE);
+          rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
+        }
+        else if (logging == 4) {
+          rtc::LogMessage::LogToDebug(rtc::LS_SENSITIVE);
         }
       }
       break;

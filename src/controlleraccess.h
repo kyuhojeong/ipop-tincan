@@ -29,9 +29,9 @@
 #define TINCAN_CONTROLLERACCESS_H_
 #pragma once
 
-#include "talk/base/socketaddress.h"
-#include "talk/p2p/base/basicpacketsocketfactory.h"
-#include "talk/base/logging.h"
+#include "webrtc/base/socketaddress.h"
+#include "webrtc/p2p/base/basicpacketsocketfactory.h"
+#include "webrtc/base/logging.h"
 
 #include "peersignalsender.h"
 #include "xmppnetwork.h"
@@ -43,7 +43,7 @@ class ControllerAccess : public PeerSignalSenderInterface,
                          public sigslot::has_slots<> {
  public:
   ControllerAccess(TinCanConnectionManager& manager, XmppNetwork& network,
-         talk_base::BasicPacketSocketFactory* packet_factory,
+         rtc::BasicPacketSocketFactory* packet_factory,
          thread_opts_t* opts);
 
   // Inherited from PeerSignalSenderInterface
@@ -51,27 +51,27 @@ class ControllerAccess : public PeerSignalSenderInterface,
                           const std::string& data, const std::string& type);
 
   // Signal handler for PacketSenderInterface
-  virtual void HandlePacket(talk_base::AsyncPacketSocket* socket,
-      const char* data, size_t len, const talk_base::SocketAddress& addr,
-      const talk_base::PacketTime& ptime);
+  virtual void HandlePacket(rtc::AsyncPacketSocket* socket,
+      const char* data, size_t len, const rtc::SocketAddress& addr,
+      const rtc::PacketTime& ptime);
 
-  virtual void ProcessIPPacket(talk_base::AsyncPacketSocket* socket,
-      const char* data, size_t len, const talk_base::SocketAddress& addr);
+  virtual void ProcessIPPacket(rtc::AsyncPacketSocket* socket,
+      const char* data, size_t len, const rtc::SocketAddress& addr);
 
  private:
   void SendTo(const char* pv, size_t cb,
-              const talk_base::SocketAddress& addr);
+              const rtc::SocketAddress& addr);
   void SendState(const std::string& uid, bool get_stats,
-                 const talk_base::SocketAddress& addr);
+                 const rtc::SocketAddress& addr);
 
-  thread_opts_t* opts_;
-  XmppNetwork& network_;
   TinCanConnectionManager& manager_;
-  talk_base::SocketAddress remote_addr_;
-  talk_base::scoped_ptr<talk_base::AsyncPacketSocket> socket_;
-  talk_base::scoped_ptr<talk_base::AsyncPacketSocket> socket6_;
-  talk_base::Thread *signal_thread_;
-  talk_base::PacketOptions packet_options_;
+  XmppNetwork& network_;
+  rtc::SocketAddress remote_addr_;
+  rtc::scoped_ptr<rtc::AsyncPacketSocket> socket_;
+  rtc::scoped_ptr<rtc::AsyncPacketSocket> socket6_;
+  rtc::Thread *signal_thread_;
+  rtc::PacketOptions packet_options_;
+  thread_opts_t* opts_;
 };
 
 }  // namespace tincan

@@ -32,12 +32,12 @@
 #endif
 
 #include <errno.h>
-#include "talk/base/basicdefs.h"
-#include "talk/base/logging.h"
-#include "talk/base/thread.h"
+#include "webrtc/base/basicdefs.h"
+#include "webrtc/base/logging.h"
+#include "webrtc/base/thread.h"
 #ifdef FEATURE_ENABLE_SSL
-#include "talk/base/ssladapter.h"
-#include "talk/base/schanneladapter.h"
+#include "webrtc/base/ssladapter.h"
+#include "webrtc/base/schanneladapter.h"
 #endif
 
 namespace tincan {
@@ -48,18 +48,18 @@ TinCanXmppSocket::TinCanXmppSocket(buzz::TlsOptions tls) : cricket_socket_(NULL)
 }
 
 void TinCanXmppSocket::CreateCricketSocket(int family) {
-  talk_base::Thread* pth = talk_base::Thread::Current();
+  rtc::Thread* pth = rtc::Thread::Current();
   if (family == AF_UNSPEC) {
     family = AF_INET;
   }
-  talk_base::AsyncSocket* socket =
+  rtc::AsyncSocket* socket =
       pth->socketserver()->CreateAsyncSocket(family, SOCK_STREAM);
 #ifdef FEATURE_ENABLE_SSL
   if (tls_ != buzz::TLS_DISABLED) {
 #ifdef WIN32
-    socket = new talk_base::SChannelAdapter(socket);
+    socket = new rtc::SChannelAdapter(socket);
 #else
-    socket = talk_base::SSLAdapter::Create(socket);
+    socket = rtc::SSLAdapter::Create(socket);
 #endif
   }
 #endif  // FEATURE_ENABLE_SSL
@@ -76,11 +76,11 @@ TinCanXmppSocket::~TinCanXmppSocket() {
   delete cricket_socket_;
 }
 
-void TinCanXmppSocket::OnReadEvent(talk_base::AsyncSocket * socket) {
+void TinCanXmppSocket::OnReadEvent(rtc::AsyncSocket * socket) {
   SignalRead();
 }
 
-void TinCanXmppSocket::OnWriteEvent(talk_base::AsyncSocket * socket) {
+void TinCanXmppSocket::OnWriteEvent(rtc::AsyncSocket * socket) {
   // Write bytes if there are any
   while (buffer_.Length() != 0) {
     int written = cricket_socket_->Send(buffer_.Data(), buffer_.Length());
@@ -94,7 +94,7 @@ void TinCanXmppSocket::OnWriteEvent(talk_base::AsyncSocket * socket) {
   }
 }
 
-void TinCanXmppSocket::OnConnectEvent(talk_base::AsyncSocket * socket) {
+void TinCanXmppSocket::OnConnectEvent(rtc::AsyncSocket * socket) {
 #if defined(FEATURE_ENABLE_SSL)
   if (state_ == buzz::AsyncSocket::STATE_TLS_CONNECTING) {
     state_ = buzz::AsyncSocket::STATE_TLS_OPEN;
@@ -107,7 +107,7 @@ void TinCanXmppSocket::OnConnectEvent(talk_base::AsyncSocket * socket) {
   SignalConnected();
 }
 
-void TinCanXmppSocket::OnCloseEvent(talk_base::AsyncSocket * socket, int error) {
+void TinCanXmppSocket::OnCloseEvent(rtc::AsyncSocket * socket, int error) {
   SignalCloseEvent(error);
 }
 
@@ -123,7 +123,7 @@ int TinCanXmppSocket::GetError() {
   return 0;
 }
 
-bool TinCanXmppSocket::Connect(const talk_base::SocketAddress& addr) {
+bool TinCanXmppSocket::Connect(const rtc::SocketAddress& addr) {
   if (cricket_socket_ == NULL) {
     CreateCricketSocket(addr.family());
   }
@@ -163,8 +163,8 @@ bool TinCanXmppSocket::StartTls(const std::string & domainname) {
 #if defined(FEATURE_ENABLE_SSL)
   if (tls_ == buzz::TLS_DISABLED)
     return false;
-  talk_base::SSLAdapter* ssl_adapter =
-    static_cast<talk_base::SSLAdapter *>(cricket_socket_);
+  rtc::SSLAdapter* ssl_adapter =
+    static_cast<rtc::SSLAdapter *>(cricket_socket_);
   if (ssl_adapter->StartSSL(domainname.c_str(), false) != 0)
     return false;
   state_ = buzz::AsyncSocket::STATE_TLS_CONNECTING;

@@ -33,21 +33,21 @@
 #include <map>
 #include <set>
 
-#include "talk/base/sigslot.h"
-#include "talk/p2p/base/p2ptransport.h"
-#include "talk/p2p/client/basicportallocator.h"
-#include "talk/p2p/base/transportdescription.h"
-#include "talk/p2p/base/transportchannelimpl.h"
-#include "talk/p2p/base/p2ptransportchannel.h"
-#include "talk/p2p/base/dtlstransportchannel.h"
-#include "talk/p2p/base/dtlstransport.h"
-#include "talk/base/base64.h"
-#include "talk/p2p/base/basicpacketsocketfactory.h"
-#include "talk/base/asyncpacketsocket.h"
-#include "talk/base/scoped_ref_ptr.h"
-#include "talk/base/refcount.h"
-#include "talk/base/json.h"
-#include "talk/base/sslidentity.h"
+#include "webrtc/base/sigslot.h"
+#include "webrtc/p2p/base/p2ptransport.h"
+#include "webrtc/p2p/client/basicportallocator.h"
+#include "webrtc/p2p/base/transportdescription.h"
+#include "webrtc/p2p/base/transportchannelimpl.h"
+#include "webrtc/p2p/base/p2ptransportchannel.h"
+#include "webrtc/p2p/base/dtlstransportchannel.h"
+#include "webrtc/p2p/base/dtlstransport.h"
+#include "webrtc/base/base64.h"
+#include "webrtc/p2p/base/basicpacketsocketfactory.h"
+#include "webrtc/base/asyncpacketsocket.h"
+#include "webrtc/base/scoped_ref_ptr.h"
+#include "webrtc/base/refcount.h"
+#include "webrtc/base/json.h"
+#include "webrtc/base/sslidentity.h"
 
 #include "talk/ipop-project/ipop-tap/src/ipop_tap.h"
 #include "talk/ipop-project/ipop-tap/src/tap.h"
@@ -80,13 +80,13 @@ class PeerSignalSender : public PeerSignalSenderInterface {
 
 };
 
-class TinCanConnectionManager : public talk_base::MessageHandler,
+class TinCanConnectionManager : public rtc::MessageHandler,
                                 public sigslot::has_slots<> {
 
  public:
   TinCanConnectionManager(PeerSignalSenderInterface* signal_sender,
-                          talk_base::Thread* link_setup_thread,
-                          talk_base::Thread* packet_handling_thread,
+                          rtc::Thread* link_setup_thread,
+                          rtc::Thread* packet_handling_thread,
                           thread_opts_t* opts);
 
   // Accessors
@@ -100,15 +100,15 @@ class TinCanConnectionManager : public talk_base::MessageHandler,
 
   const std::string tap_name() const { return tap_name_; }
   
-  talk_base::Thread* packet_handling_thread() const { return packet_handling_thread_; }
+  rtc::Thread* packet_handling_thread() const { return packet_handling_thread_; }
 
   void set_ip(const char* ip) { tincan_ip4_ = ip; }
 
-  void set_forward_addr(const talk_base::SocketAddress addr) {
+  void set_forward_addr(const rtc::SocketAddress addr) {
     forward_addr_ = addr;
   }
 
-  void set_forward_socket(talk_base::AsyncPacketSocket* socket) {
+  void set_forward_socket(rtc::AsyncPacketSocket* socket) {
     forward_socket_ = socket;
   }
 
@@ -126,24 +126,31 @@ class TinCanConnectionManager : public talk_base::MessageHandler,
 
   // Signal handlers for TransportChannelImpl
   virtual void OnRequestSignaling(cricket::Transport* transport);
-  virtual void OnRWChangeState(cricket::Transport* transport);
-  virtual void OnCandidatesReady(cricket::Transport* transport,
+  //virtual void OnRWChangeState(cricket::Transport* transport);
+  virtual void OnReceivingState(cricket::TransportChannel* channel);
+  virtual void OnWritableState(cricket::TransportChannel* channel);
+  //kyuho
+  //virtual void OnCandidatesReady(cricket::Transport* transport,
+   //                              const cricket::Candidates& candidates);
+  virtual void OnCandidatesReady(cricket::PortAllocatorSession* session,
                                  const cricket::Candidates& candidates);
-  virtual void OnCandidatesAllocationDone(cricket::Transport* transport);
+  // kyuho
+  //virtual void OnCandidatesAllocationDone(cricket::Transport* transport);
+  virtual void OnCandidatesAllocationDone(cricket::PortAllocatorSession* session);
   virtual void OnReadPacket(cricket::TransportChannel* channel, 
                             const char* data, size_t len,
-                            const talk_base::PacketTime& ptime, int flags);
+                            const rtc::PacketTime& ptime, int flags);
 
   // Inherited from MessageHandler
-  virtual void OnMessage(talk_base::Message* msg);
+  virtual void OnMessage(rtc::Message* msg);
 
   // Signal handler for PeerSignalSenderInterface
   virtual void HandlePeer(const std::string& uid, const std::string& data,
                           const std::string& type);
 
   // Signal handler for PacketSenderInterface
-  virtual void HandlePacket(talk_base::AsyncPacketSocket* socket,
-      const char* data, size_t len, const talk_base::SocketAddress& addr);
+  virtual void HandlePacket(rtc::AsyncPacketSocket* socket,
+      const char* data, size_t len, const rtc::SocketAddress& addr);
 
   // Other public functions
   virtual void Setup(
@@ -182,11 +189,14 @@ class TinCanConnectionManager : public talk_base::MessageHandler,
     std::string uid;
     std::string fingerprint;
     std::string connection_security;
-    talk_base::scoped_ptr<cricket::P2PTransport> transport;
-    talk_base::scoped_ptr<cricket::BasicPortAllocator> port_allocator;
-    talk_base::scoped_ptr<talk_base::SSLFingerprint> remote_fingerprint;
-    talk_base::scoped_ptr<cricket::TransportDescription> local_description;
-    talk_base::scoped_ptr<cricket::TransportDescription> remote_description;
+    rtc::scoped_ptr<cricket::P2PTransport> transport;
+    rtc::scoped_ptr<cricket::BasicPortAllocator> port_allocator;
+    rtc::scoped_ptr<rtc::SSLFingerprint> remote_fingerprint;
+    rtc::scoped_ptr<cricket::TransportDescription> local_description;
+    rtc::scoped_ptr<cricket::TransportDescription> remote_description;
+    // TODO do we really need this? -- kyuhoo 
+    // I lost where this is assigned to. ...
+    rtc::scoped_ptr<cricket::PortAllocatorSession> session; // --kyuho 
     cricket::P2PTransportChannel* channel;
     cricket::Candidates candidates;
     std::set<std::string> candidate_list;
@@ -201,8 +211,8 @@ class TinCanConnectionManager : public talk_base::MessageHandler,
     std::string ip6;
   };
 
-  typedef talk_base::scoped_refptr<
-      talk_base::RefCountedObject<PeerState> > PeerStatePtr;
+  typedef rtc::scoped_refptr<
+      rtc::RefCountedObject<PeerState> > PeerStatePtr;
 
  private:
   void HandleConnectionSignal(cricket::Port* port,
@@ -223,25 +233,26 @@ class TinCanConnectionManager : public talk_base::MessageHandler,
 
   const std::string content_name_;
   PeerSignalSenderInterface* signal_sender_;
-  talk_base::BasicPacketSocketFactory packet_factory_;
+  rtc::BasicPacketSocketFactory packet_factory_;
   std::map<std::string, PeerStatePtr> uid_map_;
   std::map<std::string, cricket::Transport*> short_uid_map_;
   std::map<cricket::Transport*, std::string> transport_map_;
+  std::map<cricket::PortAllocatorSession*, std::string> session_map_;
   std::map<std::string, PeerIPs> ip_map_;
-  talk_base::Thread* link_setup_thread_;
-  talk_base::Thread* packet_handling_thread_;
-  talk_base::BasicNetworkManager network_manager_;
+  rtc::Thread* link_setup_thread_;
+  rtc::Thread* packet_handling_thread_;
+  rtc::BasicNetworkManager network_manager_;
   std::string tincan_id_;
-  talk_base::scoped_ptr<talk_base::SSLIdentity> identity_;
-  talk_base::scoped_ptr<talk_base::SSLFingerprint> local_fingerprint_;
+  rtc::scoped_ptr<rtc::SSLIdentity> identity_;
+  rtc::scoped_ptr<rtc::SSLFingerprint> local_fingerprint_;
   std::string fingerprint_;
   const uint64 tiebreaker_;
   std::string tincan_ip4_;
   std::string tincan_ip6_;
   std::string tap_name_;
-  talk_base::AsyncPacketSocket* forward_socket_;
-  talk_base::SocketAddress forward_addr_;
-  talk_base::PacketOptions packet_options_;
+  rtc::AsyncPacketSocket* forward_socket_;
+  rtc::SocketAddress forward_addr_;
+  rtc::PacketOptions packet_options_;
   bool trim_enabled_;
   thread_opts_t* opts_;
 };

@@ -28,14 +28,14 @@
 #include <iostream>
 #include <sstream>
 
-#include "talk/base/logging.h"
-#include "talk/base/bind.h"
-#include "talk/base/stringencode.h"
+#include "webrtc/base/logging.h"
+#include "webrtc/base/bind.h"
+#include "webrtc/base/stringencode.h"
 #include "tincan_utils.h"
 #include "tincanconnectionmanager.h"
 
 namespace tincan {
-using talk_base::Bind;
+using rtc::Bind;
 
 static const char kIpv4[] = "172.31.0.100";
 static const char kIpv6[] = "fd50:0dbc:41f2:4a3c:0000:0000:0000:0000";
@@ -44,7 +44,7 @@ static const char kFprNull[] =
 static const char kContentName[] = "ipop-tincan";
 static const char kIceUfrag[] = "ufrag";
 static const char kIcePwd[] = "pwd";
-static const int kBufferSize = 1500;
+//static const int kBufferSize = 1500;
 static const size_t kIdBytesLen = 20;
 static const uint32 kFlags = 0;
 static const uint32 kLocalControllerId = 0;
@@ -64,8 +64,8 @@ static TinCanConnectionManager* g_manager = 0;
 // these are required to be static global variables because
 // ipop-tap is written in C and uses function pointers to access
 // this portion of the code, this can probably be done in a smarter way
-static wqueue<talk_base::Buffer*> g_recv_queue;
-static wqueue<talk_base::Buffer*> g_send_queue;
+static wqueue<rtc::Buffer*> g_recv_queue;
+static wqueue<rtc::Buffer*> g_send_queue;
 
 // when the destination uid of a packet is set to this constant it means
 // that a P2P connection does not exist and this packet is sent to
@@ -77,8 +77,8 @@ static const char kCandidateDelim[] = ":";
 
 // constants sent to controller to indicate different types of connection
 // notifications
-static const char kConStat[] = "con_stat";
-static const char kConReq[] = "con_req";
+//static const char kConStat[] = "con_stat";
+//static const char kConReq[] = "con_req";
 static const char kConResp[] = "con_resp";
 
 // enumeration used by OnMessage function
@@ -88,8 +88,8 @@ enum {
 
 TinCanConnectionManager::TinCanConnectionManager(
     PeerSignalSenderInterface* signal_sender,
-    talk_base::Thread* link_setup_thread,
-    talk_base::Thread* packet_handling_thread,
+    rtc::Thread* link_setup_thread,
+    rtc::Thread* packet_handling_thread,
     thread_opts_t* opts)
     : content_name_(kContentName),
       signal_sender_(signal_sender),
@@ -104,11 +104,11 @@ TinCanConnectionManager::TinCanConnectionManager(
       identity_(),
       local_fingerprint_(),
       fingerprint_(kFprNull),
-      tiebreaker_(talk_base::CreateRandomId64()),
+      tiebreaker_(rtc::CreateRandomId64()),
       tincan_ip4_(kIpv4),
       tincan_ip6_(kIpv6),
       tap_name_(kTapName),
-      packet_options_(talk_base::DSCP_DEFAULT),
+      packet_options_(rtc::DSCP_DEFAULT),
       trim_enabled_(false),
       opts_(opts) {
   // we have to set the global point for ipop-tap communication
@@ -131,9 +131,9 @@ void TinCanConnectionManager::Setup(
   tincan_id_ = uid;
 
   // we create X509 identity for secure connections
-  identity_.reset(talk_base::SSLIdentity::Generate(tincan_id_));
-  local_fingerprint_.reset(talk_base::SSLFingerprint::Create(
-      talk_base::DIGEST_SHA_1, identity_.get()));
+  identity_.reset(rtc::SSLIdentity::Generate(tincan_id_, rtc::KT_DEFAULT));
+  local_fingerprint_.reset(rtc::SSLFingerprint::Create(
+      rtc::DIGEST_SHA_1, identity_.get()));
 
   // verifies that local_fingerprint is not null before calling function
   if (local_fingerprint_.get()) {
@@ -142,7 +142,7 @@ void TinCanConnectionManager::Setup(
 
   // translate string based uid to byte based uid
   char uid_str[kIdBytesLen];
-  talk_base::hex_decode(uid_str, kIdBytesLen, uid);
+  rtc::hex_decode(uid_str, kIdBytesLen, uid);
 
   int error = 0;
 #if defined(LINUX) || defined(ANDROID)
@@ -162,8 +162,8 @@ void TinCanConnectionManager::Setup(
 
 void TinCanConnectionManager::OnNetworksChanged() {
   ASSERT(packet_handling_thread_->IsCurrent());
-  talk_base::NetworkManager::NetworkList networks;
-  talk_base::SocketAddress ip6_addr(tincan_ip6_, 0);
+  rtc::NetworkManager::NetworkList networks;
+  rtc::SocketAddress ip6_addr(tincan_ip6_, 0);
   network_manager_.GetNetworks(&networks);
 
   // We loop through each network interface and we disable ipop tap
@@ -180,11 +180,12 @@ void TinCanConnectionManager::OnNetworksChanged() {
   }
 }
 
+// TODO now OnSignalingReady() is deprecated. Do not this call
 void TinCanConnectionManager::OnRequestSignaling(
     cricket::Transport* transport) {
   ASSERT(link_setup_thread_->IsCurrent());
   // boiler plate libjingle code
-  transport->OnSignalingReady();
+  //transport->OnSignalingReady();
 }
 
 void TinCanConnectionManager::HandleConnectionSignal(
@@ -200,18 +201,19 @@ void TinCanConnectionManager::HandleConnectionSignal(
   }
 }
 
+/*
 void TinCanConnectionManager::OnRWChangeState(
     cricket::Transport* transport) {
   ASSERT(link_setup_thread_->IsCurrent());
   std::string uid = transport_map_[transport];
   std::string status = "unknown";
-  if (transport->readable() && transport->writable()) {
+  if (transport->receiving() && transport->writable()) {
     status = "online";
-    LOG_TS(INFO) << "ONLINE " << uid << " " << talk_base::Time();
+    LOG_TS(INFO) << "ONLINE " << uid << " " << rtc::Time();
   }
   else if (transport->was_writable()) {
     status = "offline";
-    LOG_TS(INFO) << "OFFLINE " << uid << " " << talk_base::Time();
+    LOG_TS(INFO) << "OFFLINE " << uid << " " << rtc::Time();
   }
   // callback message sent to local controller for connection status
   signal_sender_->SendToPeer(kLocalControllerId, uid, status, kConStat);
@@ -228,18 +230,37 @@ void TinCanConnectionManager::OnRWChangeState(
     }
   }
 }
+*/
 
-void TinCanConnectionManager::OnCandidatesReady(
-    cricket::Transport* transport, const cricket::Candidates& candidates) {
+void TinCanConnectionManager::OnReceivingState(
+    cricket::TransportChannel* channel) {
   ASSERT(link_setup_thread_->IsCurrent());
-  std::string uid = transport_map_[transport];
+  LOG_TS(INFO) << "Got Receiving State";
+}
+
+void TinCanConnectionManager::OnWritableState(
+    cricket::TransportChannel* channel) {
+  ASSERT(link_setup_thread_->IsCurrent());
+  LOG_TS(INFO) << "Got Writable State";
+}
+
+// Redefining OnCandidatesReady -- kyuho
+//void TinCanConnectionManager::OnCandidatesReady(
+//    cricket::Transport* transport, const cricket::Candidates& candidates) {
+void TinCanConnectionManager::OnCandidatesReady(
+    cricket::PortAllocatorSession* session, const cricket::Candidates& candidates) {
+  ASSERT(link_setup_thread_->IsCurrent());
+
+  // I need whole redesining  -- kyuho
+  //std::string uid = transport_map_[transport];
+  std::string uid = session_map_[session];
   std::set<std::string>& candidate_list = uid_map_[uid]->candidate_list;
   for (size_t i = 0; i < candidates.size(); i++) {
     if (candidates[i].network_name().compare(kTapName) == 0) continue;
     size_t idx = candidates[i].network_name().find(' ');
     std::string interface = candidates[i].network_name().substr(0, idx);
     std::string ip_string =
-        talk_base::SocketAddress::IPToString(candidates[i].address().ip());
+        rtc::SocketAddress::IPToString(candidates[i].address().ip());
 
     // here we built a colon delimited set of parameters required by
     // libjingle/ICE protocol to create P2P connections
@@ -260,9 +281,11 @@ void TinCanConnectionManager::OnCandidatesReady(
 }
 
 void TinCanConnectionManager::OnCandidatesAllocationDone(
-    cricket::Transport* transport) {
+    //cricket::Transport* transport) {
+    cricket::PortAllocatorSession* session) {
   ASSERT(link_setup_thread_->IsCurrent());
-  std::string uid = transport_map_[transport];
+  //std::string uid = transport_map_[transport];
+  std::string uid = session_map_[session];
   std::set<std::string>& candidates = uid_map_[uid]->candidate_list;
   int overlay_id = uid_map_[uid]->overlay_id;
   std::string data(fingerprint());
@@ -275,16 +298,16 @@ void TinCanConnectionManager::OnCandidatesAllocationDone(
     data += " ";
     data += *it;
   }
-  if (transport_map_.find(transport) != transport_map_.end()) {
+  if (session_map_.find(session) != session_map_.end()) {
     // for now overlay_id is typically 1 meaning send over XMPP if it
     // is 0 that means send through the controller
-    signal_sender_->SendToPeer(overlay_id, transport_map_[transport],
+    signal_sender_->SendToPeer(overlay_id, session_map_[session],
                                data, kConResp);
   }
 }
 
 void TinCanConnectionManager::OnReadPacket(cricket::TransportChannel* channel, 
-    const char* data, size_t len, const talk_base::PacketTime& ptime,
+    const char* data, size_t len, const rtc::PacketTime& ptime,
     int flags) {
   ASSERT(packet_handling_thread_->IsCurrent());
   if (len < kHeaderSize) return;
@@ -296,28 +319,28 @@ void TinCanConnectionManager::OnReadPacket(cricket::TransportChannel* channel,
   // sufficient for a small network because 8 bytes (64-bits of entropy)
   // which is enough (birthday problem). We are required to use strings
   // for lookup tables because many lookup tables depend on string as key.
-  std::string source = talk_base::hex_encode(data, kShortLen);
-  std::string dest = talk_base::hex_encode(data + kIdBytesLen, kShortLen);
+  std::string source = rtc::hex_encode(data, kShortLen);
+  std::string dest = rtc::hex_encode(data + kIdBytesLen, kShortLen);
   int component = cricket::ICE_CANDIDATE_COMPONENT_DEFAULT;
   if (short_uid_map_.find(source) != short_uid_map_.end() && 
       short_uid_map_[source]->GetChannel(component) == channel) {
     // add to receive for processing by ipop-tap
-    g_recv_queue.add(new talk_base::Buffer(data, len));
+    g_recv_queue.add(new rtc::Buffer(data, len));
   }
 }
 
-void TinCanConnectionManager::HandlePacket(talk_base::AsyncPacketSocket* socket,
-    const char* data, size_t len, const talk_base::SocketAddress& addr) {
+void TinCanConnectionManager::HandlePacket(rtc::AsyncPacketSocket* socket,
+    const char* data, size_t len, const rtc::SocketAddress& addr) {
   ASSERT(packet_handling_thread_->IsCurrent());
   if (len < (kHeaderSize)) return;
-  std::string source = talk_base::hex_encode(data, kShortLen);
-  std::string dest = talk_base::hex_encode(data + kIdBytesLen, kShortLen);
+  std::string source = rtc::hex_encode(data, kShortLen);
+  std::string dest = rtc::hex_encode(data + kIdBytesLen, kShortLen);
 
   // forward packet to controller if we do not have a P2P connection for it
   if (dest.compare(0, 3, kNullPeerId) == 0 ||
       short_uid_map_.find(dest) == short_uid_map_.end()) {
     // forward_addr_ is the address of the forwarder/controller
-    talk_base::scoped_ptr<char[]> msg(new char[len + kTincanHeaderSize]);
+    rtc::scoped_ptr<char[]> msg(new char[len + kTincanHeaderSize]);
 
     // Put IPOP version field in the header (offset 0 field)
     *(msg.get() + kTincanVerOffset) = kIpopVer;
@@ -341,14 +364,17 @@ void TinCanConnectionManager::HandlePacket(talk_base::AsyncPacketSocket* socket,
     memcpy(msg.get() + kTincanHeaderSize, data, len);
     forward_socket_->SendTo(msg.get(), len + kTincanHeaderSize,
         forward_addr_, packet_options_);
-  } 
-  else if (short_uid_map_[dest]->writable()) {
+  //} 
+  //else if (short_uid_map_[dest]->writable()) {
+  // MUST TODO writable is not available must check (kyuho)
+  } else {
     int component = cricket::ICE_CANDIDATE_COMPONENT_DEFAULT;
     cricket::TransportChannelImpl* channel = 
         short_uid_map_[dest]->GetChannel(component);
     if (channel != NULL) {
       // Send packet over Tincan P2P connection
       int count = channel->SendPacket(data, len, packet_options_, 0);
+      LOG_TS(LS_SENSITIVE) << count << " Sent";
     }
   }
 }
@@ -357,7 +383,7 @@ bool TinCanConnectionManager::SetRelay(
     PeerState* peer_state, const std::string& turn_server,
     const std::string& username, const std::string& password) {
   if (turn_server.empty() || username.empty()) return false;
-  talk_base::SocketAddress turn_addr;
+  rtc::SocketAddress turn_addr;
   turn_addr.FromString(turn_server);
   cricket::RelayServerConfig relay_config_udp(cricket::RELAY_TURN);
   cricket::RelayServerConfig relay_config_tcp(cricket::RELAY_TURN);
@@ -381,7 +407,7 @@ bool TinCanConnectionManager::SetRelay(
 void TinCanConnectionManager::SetupTransport(PeerState* peer_state) {
   peer_state->transport->SetIceTiebreaker(tiebreaker_);
   peer_state->remote_fingerprint.reset(
-      talk_base::SSLFingerprint::CreateFromRfc4572(talk_base::DIGEST_SHA_1,
+      rtc::SSLFingerprint::CreateFromRfc4572(rtc::DIGEST_SHA_1,
                                                    peer_state->fingerprint));
 
   cricket::ConnectionRole conn_role_local = cricket::CONNECTIONROLE_ACTPASS;
@@ -389,11 +415,13 @@ void TinCanConnectionManager::SetupTransport(PeerState* peer_state) {
     conn_role_local = cricket::CONNECTIONROLE_ACTIVE;
   }
   peer_state->local_description.reset(new cricket::TransportDescription(
-      cricket::NS_JINGLE_ICE_UDP, std::vector<std::string>(), kIceUfrag,
+      //cricket::NS_JINGLE_ICE_UDP, std::vector<std::string>(), kIceUfrag,
+      std::vector<std::string>(), kIceUfrag,
       kIcePwd, cricket::ICEMODE_FULL, conn_role_local,
       local_fingerprint_.get(), peer_state->candidates));
   peer_state->remote_description.reset(new cricket::TransportDescription(
-      cricket::NS_JINGLE_ICE_UDP, std::vector<std::string>(), kIceUfrag, 
+      //cricket::NS_JINGLE_ICE_UDP, std::vector<std::string>(), kIceUfrag, 
+      std::vector<std::string>(), kIceUfrag, 
       kIcePwd, cricket::ICEMODE_FULL, cricket::CONNECTIONROLE_NONE,
       peer_state->remote_fingerprint.get(), peer_state->candidates));
 
@@ -423,16 +451,23 @@ bool TinCanConnectionManager::CreateTransport(
     return false;
   }
 
-  LOG_TS(INFO) << "peer_uid:" << uid << " time:" << talk_base::Time();
-  talk_base::SocketAddress stun_addr;
+  LOG_TS(INFO) << "peer_uid:" << uid << " time:" << rtc::Time();
+  rtc::SocketAddress stun_addr;
+  //kyuho
+  cricket::ServerAddresses stun_addresses;
   stun_addr.FromString(stun_server);
-  PeerStatePtr peer_state(new talk_base::RefCountedObject<PeerState>);
+  //kyuho
+  stun_addresses.insert(stun_addr);
+  PeerStatePtr peer_state(new rtc::RefCountedObject<PeerState>);
   peer_state->uid = uid;
   peer_state->fingerprint = fingerprint;
   peer_state->overlay_id = overlay_id;
-  peer_state->last_time = talk_base::Time();
+  peer_state->last_time = rtc::Time();
+  // kyuho
+  //peer_state->port_allocator.reset(new cricket::BasicPortAllocator(
+  //    &network_manager_, &packet_factory_, stun_addr));
   peer_state->port_allocator.reset(new cricket::BasicPortAllocator(
-      &network_manager_, &packet_factory_, stun_addr));
+      &network_manager_, &packet_factory_, stun_addresses));
   peer_state->port_allocator->set_flags(kFlags);
   SetRelay(peer_state.get(), turn_server, turn_user, turn_pass);
 
@@ -440,9 +475,17 @@ bool TinCanConnectionManager::CreateTransport(
   cricket::TransportChannelImpl* channel;
   if (sec_enabled && local_fingerprint_.get() &&
       fingerprint.compare(kFprNull) != 0) {
+    //DtlsP2PTransport* dtls_transport = new DtlsP2PTransport(
+     //   link_setup_thread_, packet_handling_thread_, content_name_, 
+      //  peer_state->port_allocator.get(), identity_.get());
+//kyuho
+    //rtc::scoped_refptr<rtc::SSLIdentity> identity___ = identity_;
     DtlsP2PTransport* dtls_transport = new DtlsP2PTransport(
-        link_setup_thread_, packet_handling_thread_, content_name_, 
-        peer_state->port_allocator.get(), identity_.get());
+       content_name_, 
+        //peer_state->port_allocator.get(), rtc::RTCCertificate::Create(identity_));
+        // TODO not sure i'm this doing it right -- kyuho
+        peer_state->port_allocator.get(), rtc::RTCCertificate::Create(rtc::scoped_ptr<rtc::SSLIdentity>(identity_.get())));
+// kyuho end
     peer_state->transport.reset(dtls_transport);
     cricket::DtlsTransportChannelWrapper* dtls_channel =
         static_cast<cricket::DtlsTransportChannelWrapper*>(
@@ -453,8 +496,12 @@ bool TinCanConnectionManager::CreateTransport(
     peer_state->connection_security = "dtls";
   }
   else {
+  //  peer_state->transport.reset(new cricket::P2PTransport(
+   //     link_setup_thread_, packet_handling_thread_, content_name_, 
+    //    peer_state->port_allocator.get()));
+    // TODO -- kyuho
     peer_state->transport.reset(new cricket::P2PTransport(
-        link_setup_thread_, packet_handling_thread_, content_name_, 
+        content_name_, 
         peer_state->port_allocator.get()));
     channel = peer_state->transport->CreateChannel(component);
     peer_state->channel = static_cast<cricket::P2PTransportChannel*>(
@@ -464,16 +511,24 @@ bool TinCanConnectionManager::CreateTransport(
 
   channel->SignalReadPacket.connect(
       this, &TinCanConnectionManager::OnReadPacket);
-  peer_state->transport->SignalRequestSignaling.connect(
-      this, &TinCanConnectionManager::OnRequestSignaling);
-  peer_state->transport->SignalCandidatesReady.connect(
+  // TODO SignalRequestSignaling is not needed OnSignalReady is deprecated. But need check -- kyuho
+  //peer_state->transport->SignalRequestSignaling.connect(
+   //   this, &TinCanConnectionManager::OnRequestSignaling);
+  //peer_state->transport->SignalCandidatesReady.connect(
+  //    this, &TinCanConnectionManager::OnCandidatesReady);
+  // This is sending signal with bunch of candidates. -- kyuho
+  peer_state->session->SignalCandidatesReady.connect(
       this, &TinCanConnectionManager::OnCandidatesReady);
-  peer_state->transport->SignalCandidatesAllocationDone.connect(
+  peer_state->session->SignalCandidatesAllocationDone.connect(
       this, &TinCanConnectionManager::OnCandidatesAllocationDone);
-  peer_state->transport->SignalReadableState.connect(
-      this, &TinCanConnectionManager::OnRWChangeState);
-  peer_state->transport->SignalWritableState.connect(
-      this, &TinCanConnectionManager::OnRWChangeState);
+  //peer_state->transport->SignalReadableState.connect(
+  //    this, &TinCanConnectionManager::OnRWChangeState);
+  channel->SignalReceivingState.connect(
+      this, &TinCanConnectionManager::OnReceivingState);
+  //peer_state->transport->SignalWritableState.connect(
+  //    this, &TinCanConnectionManager::OnRWChangeState);
+  channel->SignalWritableState.connect(
+      this, &TinCanConnectionManager::OnWritableState);
 
   SetupTransport(peer_state.get());
   peer_state->transport->ConnectChannels();
@@ -494,7 +549,7 @@ bool TinCanConnectionManager::AddIPMapping(
   if (ip4.empty() || ip6.empty() || uid.size() != kIdSize || 
       ip_map_.find(uid) != ip_map_.end()) return false;
   char uid_str[kIdBytesLen];
-  talk_base::hex_decode(uid_str, kIdBytesLen, uid);
+  rtc::hex_decode(uid_str, kIdBytesLen, uid);
   // TODO - this override call should go away, only there for compatibility
   override_base_ipv4_addr_p(ip4.c_str());
 
@@ -527,17 +582,22 @@ bool TinCanConnectionManager::CreateConnections(
     std::string candidate_string;
     iss >> candidate_string;
     std::vector<std::string> fields;
-    size_t len = talk_base::split(candidate_string, ':', &fields);
+    size_t len = rtc::split(candidate_string, ':', &fields);
     if (len >= 12) {
       cricket::Candidate candidate(
-          fields[0], atoi(fields[1].c_str()), fields[2],
-          talk_base::SocketAddress(fields[3], atoi(fields[4].c_str())), 
+          // kyuho
+          //fields[0], atoi(fields[1].c_str()), fields[2],
+          atoi(fields[1].c_str()), fields[2],
+          rtc::SocketAddress(fields[3], atoi(fields[4].c_str())), 
           atoi(fields[5].c_str()), fields[6], fields[7], fields[8],
-          fields[9], atoi(fields[10].c_str()), fields[11]);
+          //kyuho
+          //fields[9], atoi(fields[10].c_str()), fields[11]);
+          atoi(fields[10].c_str()), fields[11]);
       candidates.push_back(candidate);
     }
   } while (iss);
-  uid_map_[uid]->transport->OnRemoteCandidates(candidates);
+  // I assume not need this line? -- kyuho
+  //uid_map_[uid]->transport->OnRemoteCandidates(candidates);
   return true;
 }
 
@@ -565,7 +625,7 @@ bool TinCanConnectionManager::DestroyTransport(const std::string& uid) {
   return true;
 }
 
-void TinCanConnectionManager::OnMessage(talk_base::Message* msg) {
+void TinCanConnectionManager::OnMessage(rtc::Message* msg) {
   ASSERT(packet_handling_thread_->IsCurrent());
   switch (msg->message_id) {
     case MSG_QUEUESIGNAL: {
@@ -583,33 +643,32 @@ void TinCanConnectionManager::HandlePeer(const std::string& uid,
 }
 
 int TinCanConnectionManager::DoPacketSend(const char* buf, size_t len) {
-  g_send_queue.add(new talk_base::Buffer(buf, len));
+  g_send_queue.add(new rtc::Buffer(buf, len));
   if (g_manager != 0) {
     // This is called when main_thread has to process outgoing packet
     g_manager->packet_handling_thread()->Post(g_manager, MSG_QUEUESIGNAL, 0);
-  int component = cricket::ICE_CANDIDATE_COMPONENT_DEFAULT;
   }
   return len;
 }
 
 int TinCanConnectionManager::DoPacketRecv(char* buf, size_t len) {
-  talk_base::scoped_ptr<talk_base::Buffer> packet(g_recv_queue.remove());
-  if (packet->length() > len) {
+  rtc::scoped_ptr<rtc::Buffer> packet(g_recv_queue.remove());
+  if (packet->size() > len) {
     return -1;
   }
-  memcpy(buf, packet->data(), packet->length());
-  return packet->length();
+  memcpy(buf, packet->data(), packet->size());
+  return packet->size();
 }
 
 int TinCanConnectionManager::SendToTap(const char* buf, size_t len) {
-  g_recv_queue.add(new talk_base::Buffer(buf, len));
+  g_recv_queue.add(new rtc::Buffer(buf, len));
   return len;
 }
 
 void TinCanConnectionManager::HandleQueueSignal_w() {
   ASSERT(packet_handling_thread_->IsCurrent());
-  talk_base::scoped_ptr<talk_base::Buffer> packet(g_send_queue.remove());
-  HandlePacket(0, packet->data(), packet->length(), forward_addr_);
+  rtc::scoped_ptr<rtc::Buffer> packet(g_send_queue.remove());
+  HandlePacket(0, (char *) packet->data(), packet->size(), forward_addr_);
 }
 
 void TinCanConnectionManager::GetChannelStats_w(const std::string &uid,
@@ -627,7 +686,7 @@ void TinCanConnectionManager::InsertTransportMap_w(const std::string sub_uid,
                                                    cricket::Transport* transport)
 {
   if (short_uid_map_.find(sub_uid) != short_uid_map_.end()) {
-    LOG_TS(LERROR) << "uid: " << sub_uid << " already exists" << endl;
+    LOG_TS(LERROR) << "uid: " << sub_uid << " already exists";
   }
   short_uid_map_[sub_uid] = transport;
 }
@@ -650,7 +709,7 @@ Json::Value TinCanConnectionManager::StateToJson(const std::string& uid,
   peer["status"] = "offline";
 
   // time_diff gives the amount of time since last xmpp presense message
-  uint32 time_diff = talk_base::Time() - xmpp_time;
+  uint32 time_diff = rtc::Time() - xmpp_time;
   peer["xmpp_time"] = time_diff/1000;
 
   if (ip_map_.find(uid) != ip_map_.end()) {
@@ -662,13 +721,14 @@ Json::Value TinCanConnectionManager::StateToJson(const std::string& uid,
     peer["fpr"] = uid_map_[uid]->fingerprint;
 
     // time_diff gives the amount of time since connection was created
-    time_diff = talk_base::Time() - uid_map_[uid]->last_time;
+    time_diff = rtc::Time() - uid_map_[uid]->last_time;
     peer["last_time"] = time_diff/1000;
 
     // if transport is readable and writable that means P2P connection 
     // is online and ready to send packets
-    if (uid_map_[uid]->transport->readable() && 
-        uid_map_[uid]->transport->writable()) {
+    // TODO We need other mean of detecting connection establishment -- kyuho
+    //if (uid_map_[uid]->transport->readable() && 
+    //    uid_map_[uid]->transport->writable()) {
       peer["status"] = "online";
       peer["security"] = uid_map_[uid]->connection_security;
 #if !defined(WIN32)
@@ -687,8 +747,8 @@ Json::Value TinCanConnectionManager::StateToJson(const std::string& uid,
           stat["local_type"] = infos[i].local_candidate.type();
           stat["rem_type"] = infos[i].remote_candidate.type();
           stat["best_conn"] = infos[i].best_connection;
-          stat["writable"] = infos[i].writable;
-          stat["readable"] = infos[i].readable;
+          //stat["writable"] = infos[i].writable;
+          //stat["readable"] = infos[i].readable;
           stat["timeout"] = infos[i].timeout;
           stat["new_conn"] = infos[i].new_connection;
           stat["rtt"] = (uint) infos[i].rtt;
@@ -701,7 +761,7 @@ Json::Value TinCanConnectionManager::StateToJson(const std::string& uid,
         peer["stats"] = stats;
       }
 #endif
-    }
+    //}
   }
   return peer;
 }

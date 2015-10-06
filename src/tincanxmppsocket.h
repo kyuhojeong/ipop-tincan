@@ -28,11 +28,11 @@
 #ifndef TINCANXMPPSOCKET_H_
 #define TINCANXMPPSOCKET_H_
 
-#include "talk/base/asyncsocket.h"
-#include "talk/base/bytebuffer.h"
-#include "talk/base/sigslot.h"
-#include "talk/xmpp/asyncsocket.h"
-#include "talk/xmpp/xmppengine.h"
+#include "webrtc/base/asyncsocket.h"
+#include "webrtc/base/bytebuffer.h"
+#include "webrtc/base/sigslot.h"
+#include "webrtc/libjingle/xmpp/asyncsocket.h"
+#include "webrtc/libjingle/xmpp/xmppengine.h"
 
 // The below define selects the SSLStreamAdapter implementation for
 // SSL, as opposed to the SSLAdapter socket adapter.
@@ -42,7 +42,7 @@ namespace talk_base {
   class StreamInterface;
   class SocketAddress;
 };
-extern talk_base::AsyncSocket* cricket_socket_;
+extern rtc::AsyncSocket* cricket_socket_;
 
 namespace tincan {
 
@@ -55,7 +55,7 @@ public:
   virtual buzz::AsyncSocket::Error error();
   virtual int GetError();
 
-  virtual bool Connect(const talk_base::SocketAddress& addr);
+  virtual bool Connect(const rtc::SocketAddress& addr);
   virtual bool Read(char * data, size_t len, size_t* len_read);
   virtual bool Write(const char * data, size_t len);
   virtual bool Close();
@@ -65,14 +65,14 @@ public:
 
 private:
   void CreateCricketSocket(int family);
-  void OnReadEvent(talk_base::AsyncSocket * socket);
-  void OnWriteEvent(talk_base::AsyncSocket * socket);
-  void OnConnectEvent(talk_base::AsyncSocket * socket);
-  void OnCloseEvent(talk_base::AsyncSocket * socket, int error);
+  void OnReadEvent(rtc::AsyncSocket * socket);
+  void OnWriteEvent(rtc::AsyncSocket * socket);
+  void OnConnectEvent(rtc::AsyncSocket * socket);
+  void OnCloseEvent(rtc::AsyncSocket * socket, int error);
 
-  talk_base::AsyncSocket * cricket_socket_;
+  rtc::AsyncSocket * cricket_socket_;
   buzz::AsyncSocket::State state_;
-  talk_base::ByteBuffer buffer_;
+  rtc::ByteBuffer buffer_;
   buzz::TlsOptions tls_;
 };
 

@@ -29,7 +29,7 @@
 #define TINCAN_PEERSIGNALSENDER_H_
 #pragma once
 
-#include "talk/base/sigslot.h"
+#include "webrtc/base/sigslot.h"
 
 namespace tincan {
 

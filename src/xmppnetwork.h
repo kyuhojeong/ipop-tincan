@@ -29,15 +29,15 @@
 #define TINCAN_XMPPNETWORK_H_
 #pragma once
 
-#include "talk/xmpp/xmpptask.h"
-#include "talk/xmpp/xmppengine.h"
-#include "talk/xmpp/presencestatus.h"
-#include "talk/xmpp/presencereceivetask.h"
-#include "talk/xmpp/presenceouttask.h"
-#include "talk/xmpp/pingtask.h"
-#include "talk/xmpp/xmppclient.h"
-#include "talk/xmpp/xmpppump.h"
-#include "talk/base/logging.h"
+#include "webrtc/libjingle/xmpp/xmpptask.h"
+#include "webrtc/libjingle/xmpp/xmppengine.h"
+#include "webrtc/libjingle/xmpp/presencestatus.h"
+#include "webrtc/libjingle/xmpp/presencereceivetask.h"
+#include "webrtc/libjingle/xmpp/presenceouttask.h"
+#include "webrtc/libjingle/xmpp/pingtask.h"
+#include "webrtc/libjingle/xmpp/xmppclient.h"
+#include "webrtc/libjingle/xmpp/xmpppump.h"
+#include "webrtc/base/logging.h"
 
 #include "tincanxmppsocket.h"
 #include "peersignalsender.h"
@@ -75,10 +75,10 @@ class TinCanTask
 class XmppNetwork 
     : public PeerSignalSenderInterface,
       public PeerHandlerInterface,
-      public talk_base::MessageHandler,
+      public rtc::MessageHandler,
       public sigslot::has_slots<> {
  public:
-  explicit XmppNetwork(talk_base::Thread* main_thread) 
+  explicit XmppNetwork(rtc::Thread* main_thread) 
       : main_thread_(main_thread){};
 
   // Slot for message callbacks
@@ -115,7 +115,7 @@ class XmppNetwork
     LOG_TS(LS_VERBOSE) << std::string(data, len);
   }
 
-  virtual void OnMessage(talk_base::Message* msg);
+  virtual void OnMessage(rtc::Message* msg);
 
   bool Login(std::string username, std::string password,
              std::string pcid, std::string host);
@@ -127,14 +127,14 @@ class XmppNetwork
   void OnCloseEvent(int error);
   void OnTimeout();
 
-  talk_base::Thread* main_thread_;
+  rtc::Thread* main_thread_;
   buzz::XmppClientSettings xcs_;
   buzz::PresenceStatus status_;
-  talk_base::scoped_ptr<buzz::XmppPump> pump_;
-  talk_base::scoped_ptr<TinCanXmppSocket> xmpp_socket_;
-  talk_base::scoped_ptr<buzz::PresenceOutTask> presence_out_;
-  talk_base::scoped_ptr<buzz::PingTask> ping_task_;
-  talk_base::scoped_ptr<TinCanTask> tincan_task_;
+  rtc::scoped_ptr<buzz::XmppPump> pump_;
+  rtc::scoped_ptr<TinCanXmppSocket> xmpp_socket_;
+  rtc::scoped_ptr<buzz::PresenceOutTask> presence_out_;
+  rtc::scoped_ptr<buzz::PingTask> ping_task_;
+  rtc::scoped_ptr<TinCanTask> tincan_task_;
   std::map<std::string, uint32> presence_time_;
   buzz::XmppEngine::State xmpp_state_;
   int on_msg_counter_;

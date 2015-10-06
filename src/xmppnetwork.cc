@@ -27,13 +27,13 @@
 
 #include <string>
 
-#include "talk/base/thread.h"
-#include "talk/xmpp/constants.h"
-#include "talk/xmpp/xmppclientsettings.h"
-#include "talk/xmpp/xmppthread.h"
-#include "talk/xmpp/xmpppump.h"
-#include "talk/xmpp/jid.h"
-#include "talk/xmpp/constants.h"
+#include "webrtc/base/thread.h"
+#include "webrtc/libjingle/xmpp/constants.h"
+#include "webrtc/libjingle/xmpp/xmppclientsettings.h"
+#include "webrtc/libjingle/xmpp/xmppthread.h"
+#include "webrtc/libjingle/xmpp/xmpppump.h"
+#include "webrtc/libjingle/xmpp/jid.h"
+#include "webrtc/libjingle/xmpp/constants.h"
 
 #include "tincan_utils.h"
 #include "xmppnetwork.h"
@@ -55,7 +55,6 @@ static const buzz::StaticQName QN_TINCAN = { "jabber:iq:tincan", "query" };
 static const buzz::StaticQName QN_TINCAN_DATA = { "jabber:iq:tincan", "data" };
 static const buzz::StaticQName QN_TINCAN_TYPE = { "jabber:iq:tincan", "type" };
 static const char kTemplate[] = "<query xmlns=\"jabber:iq:tincan\" />";
-static const char kErrorMsg[] = "error";
 
 // TODO - we should not be storing in global map, need to move to a class
 static std::map<std::string, std::string> g_uid_map;
@@ -79,7 +78,7 @@ void TinCanTask::SendToPeer(int overlay_id, const std::string &uid,
                             const std::string &type) {
   if (g_uid_map.find(uid) == g_uid_map.end()) return;
   const buzz::Jid to(g_uid_map[uid]);
-  talk_base::scoped_ptr<buzz::XmlElement> get(
+  rtc::scoped_ptr<buzz::XmlElement> get(
       MakeIq(buzz::STR_GET, to, task_id()));
   // TODO - Figure out how to build from QN_TINCAN instead of template
   std::string templ(kTemplate);
@@ -128,7 +127,7 @@ int TinCanTask::ProcessStart() {
     }
     else {
       // Assuming this is a presence message therefore update time
-      handler_->SetTime(uid_key, talk_base::Time());
+      handler_->SetTime(uid_key, rtc::Time());
     }
   }
   return STATE_START;
@@ -149,7 +148,7 @@ bool XmppNetwork::Login(std::string username, std::string password,
   if (pump_.get() || username.empty() || password.empty() || 
       pcid.empty() || host.empty()) return false;
 
-  talk_base::InsecureCryptStringImpl pass;
+  rtc::InsecureCryptStringImpl pass;
   pass.password() = password;
   std::string resource(kXmppPrefix);
   resource += pcid;
@@ -159,8 +158,8 @@ bool XmppNetwork::Login(std::string username, std::string password,
   xcs_.set_resource(resource);
   xcs_.set_use_tls(buzz::TLS_REQUIRED);
   //xcs_.set_allow_plain(true);
-  xcs_.set_pass(talk_base::CryptString(pass));
-  xcs_.set_server(talk_base::SocketAddress(host, kXmppPort));
+  xcs_.set_pass(rtc::CryptString(pass));
+  xcs_.set_server(rtc::SocketAddress(host, kXmppPort));
   return Connect();
 }
 
@@ -224,6 +223,9 @@ void XmppNetwork::OnStateChange(buzz::XmppEngine::State state) {
     case buzz::XmppEngine::STATE_CLOSED:
       LOG_TS(INFO) << "CLOSED";
       break;
+    case buzz::XmppEngine::STATE_NONE:
+      LOG_TS(INFO) << "NONE";
+      break;
   }
 }
 
@@ -235,7 +237,7 @@ void XmppNetwork::OnTimeout() {
   LOG_TS(INFO) << "ONTIMEOUT";
 }
 
-void XmppNetwork::OnMessage(talk_base::Message* msg) {
+void XmppNetwork::OnMessage(rtc::Message* msg) {
   if (pump_.get()) {
     if (xmpp_state_ == buzz::XmppEngine::STATE_START ||
         xmpp_state_ == buzz::XmppEngine::STATE_OPENING) {
