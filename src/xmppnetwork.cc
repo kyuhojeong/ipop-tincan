@@ -168,8 +168,11 @@ bool XmppNetwork::Connect() {
   xmpp_socket_->SignalCloseEvent.connect(this, &XmppNetwork::OnCloseEvent);
 
   pump_.reset(new buzz::XmppPump());
+
+  // When Login and Logout to XMPP server. Call Logging slot.
   pump_->client()->SignalLogInput.connect(this, &XmppNetwork::OnLogging);
   pump_->client()->SignalLogOutput.connect(this, &XmppNetwork::OnLogging);
+
   pump_->client()->SignalStateChange.connect(this, 
       &XmppNetwork::OnStateChange);
   pump_->client()->SignalDisconnected.connect(this,
