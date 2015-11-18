@@ -144,7 +144,8 @@ class TinCanConnectionManager : public talk_base::MessageHandler,
   // Other public functions
   virtual void Setup(
       const std::string& uid, const std::string& ip4, int ip4_mask,
-      const std::string& ip6, int ip6_mask, int subnet_mask, int switchmode);
+      const std::string& ip6, int ip6_mask, int subnet_mask, int switchmode,
+      int mtu, int internal_mtu);
 
   virtual bool CreateTransport(
       const std::string& uid, const std::string& fingerprint, int overlay_id,

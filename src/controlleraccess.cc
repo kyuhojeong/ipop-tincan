@@ -225,8 +225,16 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
         int ip6_mask = root["ip6_mask"].asInt();
         int subnet_mask = root["subnet_mask"].asInt();
         int switchmode = root["switchmode"].asInt();
+        int mtu = MTU;
+        int internal_mtu = mtu;
+        if (!root.isMember("mtu")) {
+            mtu = root["mtu"].asInt();
+        }
+        if (!root.isMember("internal_mtu")) {
+            internal_mtu = root["internal_mtu"].asInt();
+        }
         manager_.Setup(uid, ip4, ip4_mask, ip6, ip6_mask, subnet_mask,
-                       switchmode);
+                       switchmode, mtu, internal_mtu);
       }
       break;
     case SET_REMOTE_IP: {
