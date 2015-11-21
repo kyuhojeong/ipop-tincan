@@ -31,6 +31,7 @@ static const char kLocalHost[] = "127.0.0.1";
 static const char kLocalHost6[] = "::1";
 static const int kUdpPort = 5800;
 static const int kBufferSize = 1024;
+static const int kDefaultMtu = 1280;
 static std::map<std::string, int> rpc_calls;
 
 enum {
@@ -225,12 +226,12 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
         int ip6_mask = root["ip6_mask"].asInt();
         int subnet_mask = root["subnet_mask"].asInt();
         int switchmode = root["switchmode"].asInt();
-        int mtu = MTU;
+        int mtu = kDefaultMtu;
         int internal_mtu = mtu;
-        if (!root.isMember("mtu")) {
+        if (root.isMember("mtu")) {
             mtu = root["mtu"].asInt();
         }
-        if (!root.isMember("internal_mtu")) {
+        if (root.isMember("internal_mtu")) {
             internal_mtu = root["internal_mtu"].asInt();
         }
         manager_.Setup(uid, ip4, ip4_mask, ip6, ip6_mask, subnet_mask,
