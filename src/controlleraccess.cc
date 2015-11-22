@@ -227,15 +227,15 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
         int subnet_mask = root["subnet_mask"].asInt();
         int switchmode = root["switchmode"].asInt();
         int mtu = kDefaultMtu;
-        int internal_mtu = mtu;
+        int internal_mtu_ = mtu;
         if (root.isMember("mtu")) {
             mtu = root["mtu"].asInt();
         }
         if (root.isMember("internal_mtu")) {
-            internal_mtu = root["internal_mtu"].asInt();
+            internal_mtu_ = root["internal_mtu"].asInt();
         }
         manager_.Setup(uid, ip4, ip4_mask, ip6, ip6_mask, subnet_mask,
-                       switchmode, mtu, internal_mtu);
+                       switchmode, mtu, internal_mtu_);
       }
       break;
     case SET_REMOTE_IP: {
