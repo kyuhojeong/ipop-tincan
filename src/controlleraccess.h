@@ -43,7 +43,7 @@ class ControllerAccess : public PeerSignalSenderInterface,
          thread_opts_t* opts);
 
   // Inherited from PeerSignalSenderInterface
-  virtual void SendToPeer(int overlay_id, const std::string& uid,
+  virtual void SendToPeerQueue(int overlay_id, const std::string& uid,
                           const std::string& data, const std::string& type);
 
   // Signal handler for PacketSenderInterface

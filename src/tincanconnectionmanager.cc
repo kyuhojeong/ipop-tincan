@@ -210,7 +210,7 @@ void TinCanConnectionManager::OnRWChangeState(
     LOG_TS(INFO) << "OFFLINE " << uid << " " << talk_base::Time();
   }
   // callback message sent to local controller for connection status
-  signal_sender_->SendToPeer(kLocalControllerId, uid, status, kConStat);
+  signal_sender_->SendToPeerQueue(kLocalControllerId, uid, status, kConStat);
 
   if (status == "online") {
     // Go through all of the ports and bind to each new connection
@@ -274,7 +274,7 @@ void TinCanConnectionManager::OnCandidatesAllocationDone(
   if (transport_map_.find(transport) != transport_map_.end()) {
     // for now overlay_id is typically 1 meaning send over XMPP if it
     // is 0 that means send through the controller
-    signal_sender_->SendToPeer(overlay_id, transport_map_[transport],
+    signal_sender_->SendToPeerQueue(overlay_id, transport_map_[transport],
                                data, kConResp);
   }
 }
@@ -574,8 +574,10 @@ void TinCanConnectionManager::OnMessage(talk_base::Message* msg) {
 void TinCanConnectionManager::HandlePeer(const std::string& uid, 
     const std::string& data, const std::string& type) {
   ASSERT(link_setup_thread_->IsCurrent());
-  signal_sender_->SendToPeer(kLocalControllerId, uid, data, type);
+  LOG_TS(INFO) << "What is this thread " << talk_base::Thread::Current();
+  LOG_TS(INFO) << "link_setup_thread? " << link_setup_thread_;
   LOG_TS(INFO) << "uid:" << uid << " data:" << data << " type:" << type;
+  signal_sender_->SendToPeerQueue(kLocalControllerId, uid, data, type);
 }
 
 int TinCanConnectionManager::DoPacketSend(const char* buf, size_t len) {

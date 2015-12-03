@@ -109,9 +109,10 @@ void ControllerAccess::SendTo(const char* pv, size_t cb,
   }
 }
 
-void ControllerAccess::SendToPeer(int overlay_id, const std::string& uid,
+void ControllerAccess::SendToPeerQueue(int overlay_id, const std::string& uid,
                                   const std::string& data,
                                   const std::string& type) {
+  LOG_TS(INFO) << "Thread at : " << talk_base::Thread::Current();
   ASSERT(signal_thread_->Current());
   Json::Value json(Json::objectValue);
   json["uid"] = uid;
@@ -119,11 +120,13 @@ void ControllerAccess::SendToPeer(int overlay_id, const std::string& uid,
   json["type"] = type;
   std::string msg = json.toStyledString();
   SendTo(msg.c_str(), msg.size(), remote_addr_);
-  LOG_TS(INFO) << "uid:" << uid << " data:" << data << " type:" << type;
+  LOG_TS(INFO) << "sending message to controller uid:" << uid << " data:" << data << " type:" << type;
 }
 
 void ControllerAccess::SendState(const std::string& uid, bool get_stats,
                                  const talk_base::SocketAddress& addr) {
+  LOG_TS(INFO) << "Thread at : " << talk_base::Thread::Current();
+  LOG_TS(INFO) << "Signal thread at : " << signal_thread_;
   ASSERT(signal_thread_->Current());
   Json::Value state;
   if (uid != "") {
@@ -164,6 +167,8 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
     const char* data, size_t len, const talk_base::SocketAddress& addr,
     const talk_base::PacketTime& ptime) {
   ASSERT(signal_thread_->Current());
+  LOG_TS(INFO) << "Thread at : " << talk_base::Thread::Current();
+  LOG_TS(INFO) << "Signal thread at : " << signal_thread_;
   if (data[0] != kIpopVer) {
     LOG_TS(LS_ERROR) << "IPOP version mismatch tincan:" << kIpopVer 
                      << " controller:" << data[0];
@@ -324,7 +329,8 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
         int overlay_id = root["overlay_id"].asInt();
         std::string uid = root["uid"].asString();
         std::string fpr = root["data"].asString();
-        network_.SendToPeer(overlay_id, uid, fpr, method);
+        LOG_TS(INFO) << "Message from controller -- overay_id:" << overlay_id << " " << uid << " " << fpr;
+        network_.SendToPeerQueue(overlay_id, uid, fpr, method);
       }
       break;
   }

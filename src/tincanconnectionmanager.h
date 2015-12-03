@@ -61,9 +61,9 @@ static const char kTapDesc[] = "TAP";
 class PeerSignalSender : public PeerSignalSenderInterface {
  public:
   // Inherited from PeerSignalSenderInterface
-  virtual void SendToPeer(int overlay_id, const std::string& uid,
+  virtual void SendToPeerQueue(int overlay_id, const std::string& uid,
                           const std::string& data, const std::string& type) {
-    return service_map_[overlay_id]->SendToPeer(overlay_id, uid, data, type);
+    return service_map_[overlay_id]->SendToPeerQueue(overlay_id, uid, data, type);
   }
 
   virtual void add_service(int overlay_id, 

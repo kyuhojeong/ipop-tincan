@@ -23,6 +23,7 @@
 
 #include <string>
 
+#include "talk/base/bind.h"
 #include "talk/base/thread.h"
 #include "talk/xmpp/constants.h"
 #include "talk/xmpp/xmppclientsettings.h"
@@ -35,6 +36,10 @@
 #include "xmppnetwork.h"
 
 namespace tincan {
+
+static XmppNetwork* g_xmpp_network = 0;
+
+using talk_base::Bind;
 
 // this timeout sets how frequent XMPP server is pinged (ms)
 static const int kPingPeriod = 15000;
@@ -53,6 +58,7 @@ static const buzz::StaticQName QN_TINCAN_TYPE = { "jabber:iq:tincan", "type" };
 static const char kTemplate[] = "<query xmlns=\"jabber:iq:tincan\" />";
 static const char kErrorMsg[] = "error";
 
+
 // TODO - we should not be storing in global map, need to move to a class
 static std::map<std::string, std::string> g_uid_map;
 
@@ -70,9 +76,47 @@ TinCanTask::TinCanTask(buzz::XmppClient* client,
     handler_(handler) {
 }
 
-void TinCanTask::SendToPeer(int overlay_id, const std::string &uid,
+class PeerMsg {
+  public:
+    int overlay_id;
+    std::string uid;
+    std::string data;
+    std::string type;
+    PeerMsg(int overlay_id, std::string uid, std::string data, std::string type) {
+      this->overlay_id = overlay_id;
+      this->uid = uid;
+      this->data = data;
+      this->type = type;
+    }
+};
+
+static wqueue<tincan::PeerMsg *> g_xmpp_msg_queue;
+
+void TinCanTask::SendToPeerQueue(int overlay_id, const std::string &uid,
                             const std::string &data,
                             const std::string &type) {
+  //talk_base::scoped_ptr<PeerMsg>
+  LOG_TS(INFO) << "What is this thread" << talk_base::Thread::Current(); 
+  PeerMsg * msg = new PeerMsg(overlay_id, uid, data, type);
+  LOG_TS(INFO) << "where is it crashes 1 ?";
+  g_xmpp_msg_queue.add(msg);
+  LOG_TS(INFO) << "where is it crashes 2 ?";
+  g_main_thread->Post(NULL, MSG_XMPP_QUEUESIGNAL, 0);
+  LOG_TS(INFO) << "xmpp thread" << g_main_thread;
+  LOG_TS(INFO) << "where is it crashes 3 ?";
+  g_main_thread->Invoke<void>(Bind(&TinCanTask::SendToPeer, this));
+  LOG_TS(INFO) << "where is it crashes ?";
+  handler_->SetTime(msg->uid, talk_base::Time());
+}
+
+void TinCanTask::SendToPeer() {
+  //ASSERT(g_main_thread->IsCurrent());
+  LOG_TS(INFO) << "What is this thread" << talk_base::Thread::Current(); 
+  talk_base::scoped_ptr<PeerMsg> msg(g_xmpp_msg_queue.remove());
+  int overlay_id = msg->overlay_id;
+  std::string uid = msg->uid;
+  std::string data = msg->data;
+  std::string type = msg->type;
   if (g_uid_map.find(uid) == g_uid_map.end()) return;
   const buzz::Jid to(g_uid_map[uid]);
   talk_base::scoped_ptr<buzz::XmlElement> get(
@@ -96,6 +140,9 @@ void TinCanTask::SendToPeer(int overlay_id, const std::string &uid,
 }
 
 int TinCanTask::ProcessStart() {
+  //ASSERT(g_main_thread->IsCurrent());
+
+  LOG_TS(INFO) << "What is this thread " << talk_base::Thread::Current(); 
   const buzz::XmlElement* stanza = NextStanza();
   if (stanza == NULL) {
     return STATE_BLOCKED;
@@ -120,6 +167,7 @@ int TinCanTask::ProcessStart() {
       if (xml_data != NULL) {
         type= xml_type->BodyText();
       }
+      LOG_TS(INFO) << "Got Message over XMPP";
       handler_->DoHandlePeer(uid_key, data, type);
     }
     else {
@@ -139,6 +187,11 @@ bool TinCanTask::HandleStanza(const buzz::XmlElement* stanza) {
 
   return false;
 }
+
+XmppNetwork::XmppNetwork(talk_base::Thread* main_thread) : main_thread_(main_thread) {
+  g_xmpp_network = this;
+  g_main_thread = main_thread;
+} 
 
 bool XmppNetwork::Login(std::string username, std::string password,
                         std::string pcid, std::string host) {
@@ -232,6 +285,13 @@ void XmppNetwork::OnTimeout() {
 }
 
 void XmppNetwork::OnMessage(talk_base::Message* msg) {
+  ASSERT(main_thread_->IsCurrent());
+  LOG_TS(INFO) << "XMPP OnMessage thread:" << talk_base::Thread::Current();
+  if (msg->message_id == MSG_XMPP_QUEUESIGNAL) {
+    tincan_task_->SendToPeer();
+    return;
+  }
+
   if (pump_.get()) {
     if (xmpp_state_ == buzz::XmppEngine::STATE_START ||
         xmpp_state_ == buzz::XmppEngine::STATE_OPENING) {

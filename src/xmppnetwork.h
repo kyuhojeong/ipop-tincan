@@ -38,8 +38,16 @@
 #include "tincanxmppsocket.h"
 #include "peersignalsender.h"
 #include "tincan_utils.h"
+#include "wqueue.h"
 
 namespace tincan {
+
+// I cannot figure out of smarter way than this.
+// TinCanTask needs to access main thread to post message
+static talk_base::Thread* g_main_thread;
+
+// 0 is not used in libjingle. 1 is for login 2 is for disconnect
+const uint32 MSG_XMPP_QUEUESIGNAL = 99;
 
 static const char kXmppPrefix[] = "tincan";
 
@@ -57,8 +65,9 @@ class TinCanTask
   explicit TinCanTask(buzz::XmppClient* client,
                       PeerHandlerInterface* handler);
 
-  virtual void SendToPeer(int overlay_id, const std::string& uid,
+  virtual void SendToPeerQueue(int overlay_id, const std::string& uid,
                           const std::string& data, const std::string& type);
+  virtual void SendToPeer();
 
  protected:
   virtual int ProcessStart();
@@ -74,8 +83,8 @@ class XmppNetwork
       public talk_base::MessageHandler,
       public sigslot::has_slots<> {
  public:
-  explicit XmppNetwork(talk_base::Thread* main_thread) 
-      : main_thread_(main_thread){};
+  //#explicit XmppNetwork(talk_base::Thread* main_thread) : main_thread_(main_thread){};
+  explicit XmppNetwork(talk_base::Thread* main_thread);
 
   // Slot for message callbacks
   sigslot::signal3<const std::string&, const std::string&,
@@ -100,10 +109,10 @@ class XmppNetwork
     presence_time_[uid] = xmpp_time;
   }
 
-  virtual void SendToPeer(int overlay_id, const std::string& uid,
+  virtual void SendToPeerQueue(int overlay_id, const std::string& uid,
                           const std::string& data, const std::string& type) {
     if (xmpp_state_ == buzz::XmppEngine::STATE_OPEN && tincan_task_.get()) {
-      tincan_task_->SendToPeer(overlay_id, uid, data, type);
+      tincan_task_->SendToPeerQueue(overlay_id, uid, data, type);
     }
   }
 

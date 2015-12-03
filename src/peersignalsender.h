@@ -38,7 +38,7 @@ class PeerSignalSenderInterface {
   sigslot::signal3<const std::string&, const std::string&,
                    const std::string&> HandlePeer;
 
-  virtual void SendToPeer(int overlay_id, const std::string& uid,
+  virtual void SendToPeerQueue(int overlay_id, const std::string& uid,
                           const std::string& data,
                           const std::string& type) = 0;
 
