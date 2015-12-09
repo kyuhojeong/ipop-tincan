@@ -186,7 +186,7 @@ void TinCanConnectionManager::OnNetworksChanged() {
   }
 }
 
-// TODO now OnSignalingReady() is deprecated. Do not this call
+// TODO now OnSignalingReady() is deprecated. Do not this call -- kyuho
 void TinCanConnectionManager::OnRequestSignaling(
     cricket::Transport* transport) {
   ASSERT(link_setup_thread_->IsCurrent());
@@ -418,7 +418,7 @@ bool TinCanConnectionManager::SetRelay(
 }
 
 void TinCanConnectionManager::SetupTransport(PeerState* peer_state) {
-  peer_state->transport->SetIceTiebreaker(tiebreaker_);
+  peer_state->channel->SetIceTiebreaker(tiebreaker_);
   peer_state->remote_fingerprint.reset(
       rtc::SSLFingerprint::CreateFromRfc4572(rtc::DIGEST_SHA_1,
                                                    peer_state->fingerprint));
@@ -439,19 +439,24 @@ void TinCanConnectionManager::SetupTransport(PeerState* peer_state) {
       peer_state->remote_fingerprint.get(), peer_state->candidates));
 
   if (peer_state->uid.compare(tincan_id_) < 0) {
-    peer_state->transport->SetIceRole(cricket::ICEROLE_CONTROLLING);
+    peer_state->channel->SetIceRole(cricket::ICEROLE_CONTROLLING);
     peer_state->transport->SetLocalTransportDescription(
         *peer_state->local_description, cricket::CA_OFFER, NULL);
     peer_state->transport->SetRemoteTransportDescription(
         *peer_state->remote_description, cricket::CA_ANSWER, NULL);
   }
   else {
-    peer_state->transport->SetIceRole(cricket::ICEROLE_CONTROLLED);
+    peer_state->channel->SetIceRole(cricket::ICEROLE_CONTROLLED);
     peer_state->transport->SetRemoteTransportDescription(
         *peer_state->remote_description, cricket::CA_OFFER, NULL);
     peer_state->transport->SetLocalTransportDescription(
         *peer_state->local_description, cricket::CA_ANSWER, NULL);
   }
+  peer_state->channel->Connect();
+  peer_state->channel->MaybeStartGathering();
+  //This should allow  
+  //peer_state->transport->Connect();
+  // Trigger gathering -- kyuho
 }
 
 bool TinCanConnectionManager::CreateTransport(
@@ -468,7 +473,6 @@ bool TinCanConnectionManager::CreateTransport(
     << fingerprint << " overlay_id:" << overlay_id << overlay_id 
     << " stun_server:" << stun_server << " turn_server:" << turn_server 
     << " turn_user:" << turn_user << " turn_pass:" << turn_pass;
-  LOG_TS(LS_INFO) << "where are we fucked 0";
   rtc::SocketAddress stun_addr;
   //kyuho
   cricket::ServerAddresses stun_addresses;
@@ -483,18 +487,17 @@ bool TinCanConnectionManager::CreateTransport(
   // kyuho
   //peer_state->port_allocator.reset(new cricket::BasicPortAllocator(
   //    &network_manager_, &packet_factory_, stun_addr));
-  LOG_TS(LS_INFO) << "where are we fucked 1";
   peer_state->port_allocator.reset(new cricket::BasicPortAllocator(
       &network_manager_, &packet_factory_, stun_addresses));
-  LOG_TS(LS_INFO) << "where are we fucked 2";
   peer_state->port_allocator->set_flags(kFlags);
   SetRelay(peer_state.get(), turn_server, turn_user, turn_pass);
 
   // need to create session -- kyuho
   // The first argument(CreateSession) is sid. It seems like something session id? But I don't know what exactly. -- kyuho
   //peer_state->session.reset(peer_state->port_allocator->CreateSession(0, kContentName, cricket::ICE_CANDIDATE_COMPONENT_DEFAULT, kIceUfrag, kIcePwd));
-  peer_state->session.reset(new cricket::BasicPortAllocatorSession(peer_state->port_allocator.get(), kContentName, cricket::ICE_CANDIDATE_COMPONENT_DEFAULT, kIceUfrag, kIcePwd));
-  LOG_TS(LS_INFO) << "where are we fucked 20";
+
+  //peer_state->session.reset(new cricket::BasicPortAllocatorSession(peer_state->port_allocator.get(), kContentName, cricket::ICE_CANDIDATE_COMPONENT_DEFAULT, kIceUfrag, kIcePwd));
+  peer_state->session.reset(peer_state->port_allocator->CreateSession(std::string(), kContentName, cricket::ICE_CANDIDATE_COMPONENT_DEFAULT, kIceUfrag, kIcePwd));
 
   // Now we start session allocation 
   peer_state->session.get()->StartGettingPorts();
@@ -508,13 +511,11 @@ bool TinCanConnectionManager::CreateTransport(
       //  peer_state->port_allocator.get(), identity_.get());
 //kyuho
     //rtc::scoped_refptr<rtc::SSLIdentity> identity___ = identity_;
-  LOG_TS(LS_INFO) << "where are we fucked 3";
     DtlsP2PTransport* dtls_transport = new DtlsP2PTransport(
        content_name_, 
         //peer_state->port_allocator.get(), rtc::RTCCertificate::Create(identity_));
         // TODO not sure i'm this doing it right -- kyuho
         peer_state->port_allocator.get(), rtc::RTCCertificate::Create(rtc::scoped_ptr<rtc::SSLIdentity>(identity_.get())));
-  LOG_TS(LS_INFO) << "where are we fucked 4";
 // kyuho end
     peer_state->transport.reset(dtls_transport);
     cricket::DtlsTransportChannelWrapper* dtls_channel =
@@ -530,11 +531,9 @@ bool TinCanConnectionManager::CreateTransport(
    //     link_setup_thread_, packet_handling_thread_, content_name_, 
     //    peer_state->port_allocator.get()));
     // TODO -- kyuho
-  LOG_TS(LS_INFO) << "where are we fucked 5";
     peer_state->transport.reset(new cricket::P2PTransport(
         content_name_, 
         peer_state->port_allocator.get()));
-  LOG_TS(LS_INFO) << "where are we fucked 6";
     channel = peer_state->transport->CreateChannel(component);
     peer_state->channel = static_cast<cricket::P2PTransportChannel*>(
                               channel);
@@ -543,10 +542,8 @@ bool TinCanConnectionManager::CreateTransport(
 
 
 
-  LOG_TS(LS_INFO) << "where are we fucked 7";
   channel->SignalReadPacket.connect(
       this, &TinCanConnectionManager::OnReadPacket);
-  LOG_TS(LS_INFO) << "where are we fucked 8";
   // TODO SignalRequestSignaling is not needed OnSignalReady is deprecated. But need check -- kyuho
   //peer_state->transport->SignalRequestSignaling.connect(
    //   this, &TinCanConnectionManager::OnRequestSignaling);
@@ -555,31 +552,28 @@ bool TinCanConnectionManager::CreateTransport(
   // This is sending signal with bunch of candidates. -- kyuho
   peer_state->session->SignalCandidatesReady.connect(
       this, &TinCanConnectionManager::OnCandidatesReady);
-  LOG_TS(LS_INFO) << "where are we fucked 9";
   peer_state->session->SignalCandidatesAllocationDone.connect(
       this, &TinCanConnectionManager::OnCandidatesAllocationDone);
-  LOG_TS(LS_INFO) << "where are we fucked 10";
   //peer_state->transport->SignalReadableState.connect(
   //    this, &TinCanConnectionManager::OnRWChangeState);
   channel->SignalReceivingState.connect(
       this, &TinCanConnectionManager::OnReceivingState);
-  LOG_TS(LS_INFO) << "where are we fucked 11";
   //peer_state->transport->SignalWritableState.connect(
   //    this, &TinCanConnectionManager::OnRWChangeState);
   channel->SignalWritableState.connect(
       this, &TinCanConnectionManager::OnWritableState);
-  LOG_TS(LS_INFO) << "where are we fucked 12";
 
   SetupTransport(peer_state.get());
-  peer_state->transport->ConnectChannels();
-  LOG_TS(LS_INFO) << "where are we fucked 13";
+  //peer_state->transport->ConnectChannels();
+  peer_state->channel->Connect();
+  LOG_TS(INFO) << "Start gathering candidates";
+  peer_state->channel->MaybeStartGathering();
 
   uid_map_[uid] = peer_state;
   transport_map_[peer_state->transport.get()] = uid;
 
   // kyuho we need session map -- kyuho
   session_map_[peer_state->session.get()] = uid;
-  LOG_TS(LS_INFO) << "where are we fucked 14";
   // TODO: This is speed hack
   packet_handling_thread_->Invoke<void>(
     Bind(&TinCanConnectionManager::InsertTransportMap_w, this,
