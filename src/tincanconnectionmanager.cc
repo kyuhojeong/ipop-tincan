@@ -118,7 +118,8 @@ TinCanConnectionManager::TinCanConnectionManager(
 
 void TinCanConnectionManager::Setup(
     const std::string& uid, const std::string& ip4, int ip4_mask,
-    const std::string& ip6, int ip6_mask, int subnet_mask, int switchmode) {
+    const std::string& ip6, int ip6_mask, int subnet_mask, int switchmode,
+    int mtu, int internal_mtu_) {
 
   // input verification before proceeding
   if (!tincan_id_.empty() || uid.size() != kIdSize) return;
@@ -145,7 +146,8 @@ void TinCanConnectionManager::Setup(
   // Configure ipop tap VNIC through Linux sys calls
   error |= tap_set_ipv4_addr(ip4.c_str(), ip4_mask, opts_->my_ip4);
   error |= tap_set_ipv6_addr(ip6.c_str(), ip6_mask);
-  error |= tap_set_mtu(MTU) | tap_set_base_flags() | tap_set_up();
+  error |= tap_set_mtu(mtu) | tap_set_base_flags() | tap_set_up();
+  error |= tap_set_internal_mtu(internal_mtu_);
   if (switchmode) { error |= tap_unset_noarp_flags(); }
 #endif
   // set up ipop-tap parameters
