@@ -330,6 +330,7 @@ void TinCanConnectionManager::HandlePacket(talk_base::AsyncPacketSocket* socket,
     Json::Value json(Json::objectValue);
     if (data[63] == 0x06) {
       json["protocol"] = "TCP";
+      json["ack"] = (data[87] & 0b00010000) >> 4;
     } else if (data[63] == 0x11 ) {
       json["protocol"] = "UDP";
     }
