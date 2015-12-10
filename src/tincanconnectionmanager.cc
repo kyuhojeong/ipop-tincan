@@ -542,8 +542,7 @@ bool TinCanConnectionManager::AddIPMapping(
 
   // this create a UID to IP mapping in the ipop-tap peerlist
   if (ip4 == "127.0.0.1" ) { //TODO should be changed with switchmode flag
-    //peerlist_add_by_uid(uid_str);
-    peerlist_add_p(uid_str, ip4.c_str(), ip6.c_str(), 0);
+    peerlist_add_by_uid(uid_str);
   } else {
     peerlist_add_p(uid_str, ip4.c_str(), ip6.c_str(), 0);
   }
