@@ -45,6 +45,11 @@ static const size_t kIdBytesLen = 20;
 static const uint32 kFlags = 0;
 static const uint32 kLocalControllerId = 0;
 
+static int packet_counter[40000];
+//for(int i=0; i<40000;i++) {
+//  packet_count[i] = 0;
+//}
+
 // this is an optimization for decode 20-byte hearders, we only
 // decode 8 bytes instead of 20-bytes because hex_decode is
 // costly operation and 8 bytes is enough entropy for small
@@ -105,8 +110,10 @@ TinCanConnectionManager::TinCanConnectionManager(
       tincan_ip6_(kIpv6),
       tap_name_(kTapName),
       packet_options_(talk_base::DSCP_DEFAULT),
+      high_priority_packet_options_(talk_base::DSCP_AF13),
       trim_enabled_(false),
-      opts_(opts) {
+      opts_(opts),
+      icc_(false) {
   // we have to set the global point for ipop-tap communication
   g_manager = this;
 
@@ -121,6 +128,9 @@ void TinCanConnectionManager::Setup(
     const std::string& ip6, int ip6_mask, int subnet_mask, int switchmode,
     int mtu, int internal_mtu_) {
 
+for(int i=0; i<40000;i++) {
+  packet_counter[i] = 0;
+}
   // input verification before proceeding
   if (!tincan_id_.empty() || uid.size() != kIdSize) return;
 
@@ -321,39 +331,45 @@ void TinCanConnectionManager::HandlePacket(talk_base::AsyncPacketSocket* socket,
     //char notify_ipv4_dst_port[100];
     int notify_ipv4_src_port = (((unsigned char) data[74]) << 8) + ((unsigned char) data[75]);
     int notify_ipv4_dst_port = (((unsigned char) data[76] << 8)) +  ((unsigned char) data[77]);
-    sprintf(notify_src_mac, "%02X:%02X:%02X:%02X:%02X:%02X", (unsigned char) data[46], (unsigned char) data[47], (unsigned char) data[48], (unsigned char) data[49], (unsigned char) data[50], (unsigned char) data[51]);
-    sprintf(notify_dst_mac, "%02X:%02X:%02X:%02X:%02X:%02X", (unsigned char) data[40], (unsigned char) data[41], (unsigned char) data[42], (unsigned char) data[43], (unsigned char) data[44], (unsigned char) data[45]);
-    sprintf(notify_ipv4_src_addr, "%d.%d.%d.%d", (unsigned char) data[66], (unsigned char) data[67], (unsigned char) data[68], (unsigned char) data[69]);
-    sprintf(notify_ipv4_dst_addr, "%d.%d.%d.%d", (unsigned char) data[70], (unsigned char) data[71], (unsigned char) data[72], (unsigned char) data[73]);
-    //sprintf(notify_ipv4_src_port, "%d", (((unsigned char) data[74]) << 8) + ((unsigned char) data[75]));
-    //sprintf(notify_ipv4_dst_port, "%d", (((unsigned char) data[76] << 8)) +  ((unsigned char) data[77]));
-    Json::Value json(Json::objectValue);
-    if (data[63] == 0x06) {
-      json["protocol"] = "TCP";
-      json["ack"] = (data[87] & 0b00010000) >> 4;
-    } else if (data[63] == 0x11 ) {
-      json["protocol"] = "UDP";
+    if (notify_ipv4_src_port >= 10000) {
+      if (packet_counter[notify_ipv4_src_port % 40000] % 1000 == 0) {
+        sprintf(notify_src_mac, "%02X:%02X:%02X:%02X:%02X:%02X", (unsigned char) data[46], (unsigned char) data[47], (unsigned char) data[48], (unsigned char) data[49], (unsigned char) data[50], (unsigned char) data[51]);
+        sprintf(notify_dst_mac, "%02X:%02X:%02X:%02X:%02X:%02X", (unsigned char) data[40], (unsigned char) data[41], (unsigned char) data[42], (unsigned char) data[43], (unsigned char) data[44], (unsigned char) data[45]);
+        sprintf(notify_ipv4_src_addr, "%d.%d.%d.%d", (unsigned char) data[66], (unsigned char) data[67], (unsigned char) data[68], (unsigned char) data[69]);
+        sprintf(notify_ipv4_dst_addr, "%d.%d.%d.%d", (unsigned char) data[70], (unsigned char) data[71], (unsigned char) data[72], (unsigned char) data[73]);
+        //sprintf(notify_ipv4_src_port, "%d", (((unsigned char) data[74]) << 8) + ((unsigned char) data[75]));
+        //sprintf(notify_ipv4_dst_port, "%d", (((unsigned char) data[76] << 8)) +  ((unsigned char) data[77]));
+        Json::Value json(Json::objectValue);
+        if (data[63] == 0x06) {
+          json["protocol"] = "TCP";
+          json["ack"] = (data[87] & 0b00010000) >> 4;
+        } else if (data[63] == 0x11 ) {
+          json["protocol"] = "UDP";
+        }
+        json["nw_proto"] = data[63];
+        json["src_mac"] = notify_src_mac;
+        json["dst_mac"] = notify_dst_mac;
+        json["src_ipv4"] = notify_ipv4_src_addr;
+        json["dst_ipv4"] = notify_ipv4_dst_addr;
+        json["src_port"] = notify_ipv4_src_port;
+        json["dst_port"] = notify_ipv4_dst_port;
+        json["type"] = "packet_notify";
+        std::string pk_info = json.toStyledString();
+        //LOG_TS(INFO) << "pk_info:" << pk_info << endl;
+
+        talk_base::scoped_ptr<char[]> msg(new char[pk_info.size()+kTincanHeaderSize]);
+        *(msg.get() + kTincanVerOffset) = kIpopVer;
+        *(msg.get() + kTincanMsgTypeOffset) = kTincanControl;
+        //LOG_TS(INFO) << "0:" << (unsigned int) *(msg.get()) << endl;
+        //LOG_TS(INFO) << "1:" << (unsigned int) *(msg.get()+1) << endl;
+
+        memcpy(msg.get() + kTincanHeaderSize, pk_info.c_str(), pk_info.size());
+        forward_socket_->SendTo(msg.get(), pk_info.size() + kTincanHeaderSize,
+            forward_addr_, high_priority_packet_options_);
+            //forward_addr_, packet_options_);
+      }
+      packet_counter[notify_ipv4_src_port % 40000]++;
     }
-    json["nw_proto"] = data[63];
-    json["src_mac"] = notify_src_mac;
-    json["dst_mac"] = notify_dst_mac;
-    json["src_ipv4"] = notify_ipv4_src_addr;
-    json["dst_ipv4"] = notify_ipv4_dst_addr;
-    json["src_port"] = notify_ipv4_src_port;
-    json["dst_port"] = notify_ipv4_dst_port;
-    json["type"] = "packet_notify";
-    std::string pk_info = json.toStyledString();
-    //LOG_TS(INFO) << "pk_info:" << pk_info << endl;
-
-    talk_base::scoped_ptr<char[]> msg(new char[pk_info.size()+kTincanHeaderSize]);
-    *(msg.get() + kTincanVerOffset) = kIpopVer;
-    *(msg.get() + kTincanMsgTypeOffset) = kTincanControl;
-    //LOG_TS(INFO) << "0:" << (unsigned int) *(msg.get()) << endl;
-    //LOG_TS(INFO) << "1:" << (unsigned int) *(msg.get()+1) << endl;
-
-    memcpy(msg.get() + kTincanHeaderSize, pk_info.c_str(), pk_info.size());
-    forward_socket_->SendTo(msg.get(), pk_info.size() + kTincanHeaderSize,
-        forward_addr_, packet_options_);
   }
 
   // forward packet to controller if we do not have a P2P connection for it
@@ -391,7 +407,12 @@ void TinCanConnectionManager::HandlePacket(talk_base::AsyncPacketSocket* socket,
         short_uid_map_[dest]->GetChannel(component);
     if (channel != NULL) {
       // Send packet over Tincan P2P connection
-      int count = channel->SendPacket(data, len, packet_options_, 0);
+      if (is_icc((unsigned char *) data)) {
+        LOG_TS(INFO) << "SENDING OUT WITH HIGHER PRIORITY";
+        int count = channel->SendPacket(data, len, high_priority_packet_options_, 0);
+      } else {
+        int count = channel->SendPacket(data, len, packet_options_, 0);
+      }
     }
   }
 }
