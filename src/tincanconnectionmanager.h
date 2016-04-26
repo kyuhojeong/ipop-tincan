@@ -239,8 +239,10 @@ class TinCanConnectionManager : public talk_base::MessageHandler,
   talk_base::AsyncPacketSocket* forward_socket_;
   talk_base::SocketAddress forward_addr_;
   talk_base::PacketOptions packet_options_;
+  talk_base::PacketOptions high_priority_packet_options_;
   bool trim_enabled_;
   thread_opts_t* opts_;
+  bool icc_;
 };
 
 }  // namespace tincan
