@@ -50,6 +50,7 @@ static const int kXmppPort = 5222;
 static const buzz::StaticQName QN_TINCAN = { "jabber:iq:tincan", "query" };
 static const buzz::StaticQName QN_TINCAN_DATA = { "jabber:iq:tincan", "data" };
 static const buzz::StaticQName QN_TINCAN_TYPE = { "jabber:iq:tincan", "type" };
+static const buzz::StaticQName QN_TINCAN_IPV4 = { "jabber:iq:tincan", "ipv4" };
 static const char kTemplate[] = "<query xmlns=\"jabber:iq:tincan\" />";
 static const char kErrorMsg[] = "error";
 
@@ -71,8 +72,8 @@ TinCanTask::TinCanTask(buzz::XmppClient* client,
 }
 
 void TinCanTask::SendToPeer(int overlay_id, const std::string &uid,
-                            const std::string &data,
-                            const std::string &type) {
+                            const std::string &data, const std::string &type,
+                            const std::string &ipv4) {
   if (g_uid_map.find(uid) == g_uid_map.end()) return;
   const buzz::Jid to(g_uid_map[uid]);
   talk_base::scoped_ptr<buzz::XmlElement> get(
@@ -83,16 +84,19 @@ void TinCanTask::SendToPeer(int overlay_id, const std::string &uid,
   //buzz::XmlElement* element = new buzz::XmlElement(QN_TINCAN);
   buzz::XmlElement* data_xe = new buzz::XmlElement(QN_TINCAN_DATA);
   buzz::XmlElement* type_xe = new buzz::XmlElement(QN_TINCAN_TYPE);
+  buzz::XmlElement* ipv4_xe = new buzz::XmlElement(QN_TINCAN_IPV4);
 
   data_xe->SetBodyText(data);
   type_xe->SetBodyText(type);
+  ipv4_xe->SetBodyText(ipv4);
   element->AddElement(data_xe);
   element->AddElement(type_xe);
+  element->AddElement(ipv4_xe);
 
   get->AddElement(element);
   SendStanza(get.get());
   LOG_TS(INFO) << "XMPP SEND uid " << uid << " data " << data
-               << " type " << type;
+               << " type " << type << " ipv4 " << ipv4;
 }
 
 int TinCanTask::ProcessStart() {
