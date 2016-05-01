@@ -271,6 +271,8 @@ void TinCanConnectionManager::OnCandidatesAllocationDone(
     data += " ";
     data += *it;
   }
+  data += "~";
+  data += tincan_ip4_;
   if (transport_map_.find(transport) != transport_map_.end()) {
     // for now overlay_id is typically 1 meaning send over XMPP if it
     // is 0 that means send through the controller
@@ -414,6 +416,7 @@ bool TinCanConnectionManager::CreateTransport(
     const std::string& stun_server, const std::string& turn_server,
     const std::string& turn_user, const std::string& turn_pass,
     const bool sec_enabled) {
+  LOG_TS(INFO) << "uid " << uid << "\nfpr " << fingerprint;
   if (uid_map_.find(uid) != uid_map_.end() || tincan_id_ == uid) {
     LOG_TS(INFO) << "EXISTS " << uid;
     return false;
@@ -495,11 +498,11 @@ bool TinCanConnectionManager::AddIPMapping(
   override_base_ipv4_addr_p(ip4.c_str());
 
   // this create a UID to IP mapping in the ipop-tap peerlist
-  if (ip4 == "127.0.0.1" ) { //TODO should be changed with switchmode flag
+  //if (ip4 == "127.0.0.1" ) { //TODO should be changed with switchmode flag
     peerlist_add_by_uid(uid_str);
-  } else {
-    peerlist_add_p(uid_str, ip4.c_str(), ip6.c_str(), 0);
-  }
+  //} else {
+   // peerlist_add_p(uid_str, ip4.c_str(), ip6.c_str(), 0);
+  //}
   PeerIPs ips;
   ips.ip4 = ip4;
   ips.ip6 = ip6;
@@ -511,6 +514,7 @@ bool TinCanConnectionManager::AddIPMapping(
 
 bool TinCanConnectionManager::CreateConnections(
     const std::string& uid, const std::string& candidates_string) {
+  LOG_TS(INFO) << "cas " << candidates_string;
   ASSERT(link_setup_thread_->IsCurrent());
   if (uid_map_.find(uid) == uid_map_.end()) return false;
   cricket::Candidates& candidates = uid_map_[uid]->candidates;

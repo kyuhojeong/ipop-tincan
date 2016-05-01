@@ -116,6 +116,7 @@ int main(int argc, char **argv) {
 #endif
   opts.translate = 0;
   opts.switchmode = 0;
+  opts.enable_arp_response = 1;
 
   talk_base::Thread packet_handling_thread, send_thread, recv_thread;
   talk_base::AutoThread link_setup_thread;

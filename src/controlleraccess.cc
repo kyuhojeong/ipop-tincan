@@ -48,6 +48,7 @@ enum {
   ECHO_REQUEST = 12,
   ECHO_REPLY = 13,
   SET_NETWORK_IGNORE_LIST = 14,
+  ENABLE_ARP_RESPONSE = 15,
 };
 
 static void init_map() {
@@ -65,6 +66,7 @@ static void init_map() {
   rpc_calls["echo_request"] = ECHO_REQUEST;
   rpc_calls["echo_reply"] = ECHO_REPLY;
   rpc_calls["set_network_ignore_list"] = SET_NETWORK_IGNORE_LIST;
+  rpc_calls["enable_arp_response"] = ENABLE_ARP_RESPONSE;
 }
 
 ControllerAccess::ControllerAccess(
@@ -318,6 +320,12 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
         ignore_list[i] = network_ignore_list[i].asString();
       }
       manager_.set_network_ignore_list(ignore_list);
+      }
+      break;
+    case ENABLE_ARP_RESPONSE: {
+        LOG_TS(INFO) << "Enabling ARP RESPONSE for Dr Azab";
+        int enable_arp_response = root["enable_arp_response"].asInt();
+        opts_->enable_arp_response = enable_arp_response;
       }
       break;
     default: {
