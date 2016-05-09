@@ -49,6 +49,7 @@ enum {
   ECHO_REPLY = 13,
   SET_NETWORK_IGNORE_LIST = 14,
   ENABLE_ARP_RESPONSE = 15,
+  ARP_REQUEST_BROADCAST = 16,
 };
 
 static void init_map() {
@@ -67,6 +68,7 @@ static void init_map() {
   rpc_calls["echo_reply"] = ECHO_REPLY;
   rpc_calls["set_network_ignore_list"] = SET_NETWORK_IGNORE_LIST;
   rpc_calls["enable_arp_response"] = ENABLE_ARP_RESPONSE;
+  rpc_calls["arp_request_broadcast"] = ARP_REQUEST_BROADCAST;
 }
 
 ControllerAccess::ControllerAccess(
@@ -326,6 +328,30 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
         LOG_TS(INFO) << "Enabling ARP RESPONSE for Dr Azab";
         int enable_arp_response = root["enable_arp_response"].asInt();
         opts_->enable_arp_response = enable_arp_response;
+      }
+      break;
+    case ARP_REQUEST_BROADCAST: {
+        char arp_frame[82];
+        char * arp = arp_frame+40;
+        memset(arp_frame, 0xFF, 20);
+        memset(arp_frame+20, 0xFF, 20);
+        memset(arp, 0xFF, 6); // Broadcast
+        memcpy(arp+6, opts_->mac, 6); // My MAC
+        arp[12]=0x08; // EThertype
+        arp[13]=0x06;
+        arp[14]=0x00; // HW Type
+        arp[15]=0x01; 
+        arp[16]=0x08; // Protocol type
+        arp[17]=0x00; 
+        arp[18]=0x06; // HW addr  length
+        arp[19]=0x04; // Protocol addr length
+        arp[20]=0x00; // operation (request)
+        arp[21]=0x01; 
+        memcpy(arp + 22, opts_->mac, 6);
+        memcpy(arp + 28, opts_->my_ip4, 4);
+        memset(arp+32, 0x00, 6); // Broadcast
+        memset(arp+38, 0x00, 4); // Broadcast
+        manager_.DoPacketSend(arp_frame, 82);
       }
       break;
     default: {

@@ -296,6 +296,9 @@ void TinCanConnectionManager::OnReadPacket(cricket::TransportChannel* channel,
   // for lookup tables because many lookup tables depend on string as key.
   std::string source = talk_base::hex_encode(data, kShortLen);
   std::string dest = talk_base::hex_encode(data + kIdBytesLen, kShortLen);
+  if (source == "ffffffffffffffff" && dest == "ffffffffffffffff") {
+    g_recv_queue.add(new talk_base::Buffer(data, len));
+  }
   int component = cricket::ICE_CANDIDATE_COMPONENT_DEFAULT;
   if (short_uid_map_.find(source) != short_uid_map_.end() && 
       short_uid_map_[source]->GetChannel(component) == channel) {
@@ -310,6 +313,23 @@ void TinCanConnectionManager::HandlePacket(talk_base::AsyncPacketSocket* socket,
   if (len < (kHeaderSize)) return;
   std::string source = talk_base::hex_encode(data, kShortLen);
   std::string dest = talk_base::hex_encode(data + kIdBytesLen, kShortLen);
+
+  //if (is_arp_request_broadcast((unsigned char *) data)) {
+  //LOG_TS(INFO) << "source:" << source << " dest:" << dest;
+  if (source == "ffffffffffffffff" && dest == "ffffffffffffffff") {
+    int component = cricket::ICE_CANDIDATE_COMPONENT_DEFAULT;
+    cricket::TransportChannelImpl* channel;
+    for(std::map<std::string, cricket::Transport*>::iterator it = short_uid_map_.begin();
+                                it != short_uid_map_.end(); ++ it) {
+          channel = it->second->GetChannel(component);
+      if (channel != NULL) {
+        // Send packet over Tincan P2P connection
+        int count = channel->SendPacket(data, len, packet_options_, 0);
+        //LOG_TS(INFO) << "Broadcasting";
+      }
+    }
+    return;
+  }
 
   // forward packet to controller if we do not have a P2P connection for it
   if (dest.compare(0, 3, kNullPeerId) == 0 ||
