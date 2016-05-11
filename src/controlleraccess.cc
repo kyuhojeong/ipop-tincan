@@ -331,6 +331,7 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
       }
       break;
     case ARP_REQUEST_BROADCAST: {
+        LOG_TS(INFO) << "Broadcasting its ARP request";
         char arp_frame[82];
         char * arp = arp_frame+40;
         memset(arp_frame, 0xFF, 20);

@@ -297,6 +297,7 @@ void TinCanConnectionManager::OnReadPacket(cricket::TransportChannel* channel,
   std::string source = talk_base::hex_encode(data, kShortLen);
   std::string dest = talk_base::hex_encode(data + kIdBytesLen, kShortLen);
   if (source == "ffffffffffffffff" && dest == "ffffffffffffffff") {
+    LOG_TS(INFO) << "Broadcast message has arrived";
     g_recv_queue.add(new talk_base::Buffer(data, len));
   }
   int component = cricket::ICE_CANDIDATE_COMPONENT_DEFAULT;
@@ -324,6 +325,7 @@ void TinCanConnectionManager::HandlePacket(talk_base::AsyncPacketSocket* socket,
           channel = it->second->GetChannel(component);
       if (channel != NULL) {
         // Send packet over Tincan P2P connection
+        LOG_TS(INFO) << "Sending My ARP req message";
         int count = channel->SendPacket(data, len, packet_options_, 0);
         //LOG_TS(INFO) << "Broadcasting";
       }
