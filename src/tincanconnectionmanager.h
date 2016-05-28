@@ -216,6 +216,7 @@ class TinCanConnectionManager : public talk_base::MessageHandler,
   void GetChannelStats_w(const std::string &uid,
                          cricket::ConnectionInfos *infos);
   bool is_icc(const unsigned char * buf);
+  bool is_nonunicast(const unsigned char * buf);
 
   const std::string content_name_;
   PeerSignalSenderInterface* signal_sender_;

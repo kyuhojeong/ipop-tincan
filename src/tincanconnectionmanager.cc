@@ -336,6 +336,8 @@ const char* data, size_t len, const talk_base::SocketAddress& addr)
                     {
                         *(msg.get() + kTincanMsgTypeOffset) = kICCControl;
                     }
+                } else if (len > (kHeaderSize + 6) && is_nonunicast((unsigned char *) data)) {
+                    *(msg.get() + kTincanMsgTypeOffset) = kOverlayMulticast;
                 } 
                 else 
                 {
@@ -750,6 +752,16 @@ bool TinCanConnectionManager::is_icc(const unsigned char * buf) {
   return buf[offset] == 0x00 && buf[offset+1] == 0x69 &&
          buf[offset+2] == 0x70 && buf[offset+3] == 0x6f &&
          buf[offset+4] == 0x70;
+}
+
+bool TinCanConnectionManager::is_nonunicast(const unsigned char * buf) {
+  int offset = kIdBytesLen*2;
+  return ((buf[offset] == 0xff && buf[offset+1] == 0xff &&
+           buf[offset+2] == 0xff && buf[offset+3] == 0xff && 
+           buf[offset+4] == 0xff && buf[offset+5] == 0xff) ||
+          (buf[offset] == 0x01 && buf[offset+1] == 0x00 &&
+           buf[offset+2] == 0x5e && ((buf[offset+3] >> 7) == 0x00)));
+
 }
 
 }  // namespace tincan

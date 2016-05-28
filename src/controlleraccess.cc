@@ -47,6 +47,7 @@ enum {
   ECHO_REQUEST = 12,
   ECHO_REPLY = 13,
   SET_NETWORK_IGNORE_LIST = 14,
+  SET_SWITCHMODE_CONTROLLER = 15,
 };
 
 static void init_map() {
@@ -64,6 +65,7 @@ static void init_map() {
   rpc_calls["echo_request"] = ECHO_REQUEST;
   rpc_calls["echo_reply"] = ECHO_REPLY;
   rpc_calls["set_network_ignore_list"] = SET_NETWORK_IGNORE_LIST;
+  rpc_calls["set_switchmode_controller"] = SET_SWITCHMODE_CONTROLLER;
 }
 
 ControllerAccess::ControllerAccess(
@@ -321,6 +323,11 @@ void ControllerAccess::HandlePacket(talk_base::AsyncPacketSocket* socket,
         ignore_list[i] = network_ignore_list[i].asString();
       }
       manager_.set_network_ignore_list(ignore_list);
+      }
+      break;
+    case SET_SWITCHMODE_CONTROLLER: {
+        int overlay_multicast = root["switchmode_controller"].asInt();
+        opts_->overlay_multicast = overlay_multicast;
       }
       break;
     default: {

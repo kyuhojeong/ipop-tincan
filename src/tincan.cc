@@ -132,7 +132,7 @@ void parse_args(int argc,char **args) {
 int main(int argc, char **argv) {
   // Parse arguments
   parse_args(argc,argv);
-  talk_base::InitializeSSL();
+  talk_base::InitializeSSL(SSLVerificationCallback);
   peerlist_init();
   thread_opts_t opts;
 #if defined(LINUX) || defined(ANDROID)
@@ -144,6 +144,7 @@ int main(int argc, char **argv) {
 #endif
   opts.translate = 0;
   opts.switchmode = 0;
+  opts.overlay_multicast = 0;
 
   talk_base::Thread packet_handling_thread, send_thread, recv_thread;
   talk_base::AutoThread link_setup_thread;

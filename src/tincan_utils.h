@@ -58,6 +58,7 @@ static const char kTincanControl = 0x01;
 static const char kTincanPacket = 0x02;
 static const char kICCControl = 0x03; //Intercontroller connection header
 static const char kICCPacket = 0x04; //Intercontroller connection header
+static const char kOverlayMulticast = 0x05; 
 
 static const int kTincanVerOffset = 0;
 static const int kTincanMsgTypeOffset = 1;
