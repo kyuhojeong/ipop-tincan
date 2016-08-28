@@ -331,7 +331,7 @@ void TinCanConnectionManager::HandlePacket(talk_base::AsyncPacketSocket* socket,
     //char notify_ipv4_dst_port[100];
     int notify_ipv4_src_port = (((unsigned char) data[74]) << 8) + ((unsigned char) data[75]);
     int notify_ipv4_dst_port = (((unsigned char) data[76] << 8)) +  ((unsigned char) data[77]);
-    if (notify_ipv4_src_port >= 10000) {
+    if (notify_ipv4_src_port >= 10000 || (notify_ipv4_dst_port >= 5000 and notify_ipv4_dst_port < 6000)) {
       if (packet_counter[notify_ipv4_src_port % 40000] % 1000 == 0) {
         sprintf(notify_src_mac, "%02X:%02X:%02X:%02X:%02X:%02X", (unsigned char) data[46], (unsigned char) data[47], (unsigned char) data[48], (unsigned char) data[49], (unsigned char) data[50], (unsigned char) data[51]);
         sprintf(notify_dst_mac, "%02X:%02X:%02X:%02X:%02X:%02X", (unsigned char) data[40], (unsigned char) data[41], (unsigned char) data[42], (unsigned char) data[43], (unsigned char) data[44], (unsigned char) data[45]);
